@@ -25,18 +25,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a.processors;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.routes.T2ARouter;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
+import org.hisp.dhis.integration.t2a.routes.T2ARouter;
 
-public class ParallelDataValueSetQueryBuilder implements Processor
+public class DataValueSetQueryBuilder implements Processor
 {
     public void process( Exchange exchange )
     {
-        ProgramIndicator programIndicator = exchange.getMessage().getBody( ProgramIndicator.class );
+        ProgramIndicatorGroup programIndicatorGroup = exchange.getProperty( T2ARouter.PROPERTY_PROGRAM_INDICATORS,
+            ProgramIndicatorGroup.class );
 
         String ouLevel = exchange.getProperty( T2ARouter.PROPERTY_OU_LEVEL, String.class );
         String period = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
@@ -44,7 +45,7 @@ public class ParallelDataValueSetQueryBuilder implements Processor
 
         // TODO: get these strings from properties file and make a more robust
         // builder
-        String query = "dimension=dx:" + programIndicator.getId() +
+        String query = "dimension=dx:" + programIndicatorGroup.programIndicatorAsString() +
             "&dimension=ou:LEVEL-" + ouLevel +
             "&dimension=pe:" + period +
             "&outputIdScheme=" + outputIdScheme;

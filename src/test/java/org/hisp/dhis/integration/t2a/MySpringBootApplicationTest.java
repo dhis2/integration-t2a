@@ -25,21 +25,50 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a;
 
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
+import org.apache.camel.CamelContext;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.builder.AdviceWith;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
-public class OrganisationUnitQueryBuilder implements Processor
+@SpringBootTest
+@CamelSpringBootTest
+public class MySpringBootApplicationTest
 {
-    @Override
-    public void process( Exchange exchange )
+
+    @Autowired
+    private CamelContext camelContext;
+
+    @Autowired
+    private ProducerTemplate producerTemplate;
+
+    // @Test
+    public void test()
         throws Exception
     {
-        String ou = exchange.getProperty( "ou", String.class );
+        MockEndpoint mock = camelContext.getEndpoint( "mock:stream:out", MockEndpoint.class );
 
-        String query = "paging=false&fields=id&filter=level:eq:" + ou;
+        AdviceWith.adviceWith( camelContext, "hello",
+            // intercepting an exchange on route
+            r -> {
+                // replacing consumer with direct component
+                r.replaceFromWith( "direct:start" );
+                // mocking producer
+                r.mockEndpoints( "stream*" );
+            } );
 
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+        // setting expectations
+        mock.expectedMessageCount( 1 );
+        mock.expectedBodiesReceived( "Hello World" );
+
+        // invoking consumer
+        producerTemplate.sendBody( "direct:start", null );
+
+        // asserting mock is satisfied
+        mock.assertIsSatisfied();
     }
 }

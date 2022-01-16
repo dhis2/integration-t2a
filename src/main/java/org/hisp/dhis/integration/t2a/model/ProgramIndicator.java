@@ -25,7 +25,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.model;
+package org.hisp.dhis.integration.t2a.model;
+
+import java.util.List;
 
 import lombok.Data;
 
@@ -33,7 +35,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
 @JsonIgnoreProperties( ignoreUnknown = true )
-public class OrganisationUnit
+public class ProgramIndicator
 {
     private String id;
+
+    private String aggregateExportCategoryOptionCombo;
+
+    private List<AttributeValue> attributeValues;
 }

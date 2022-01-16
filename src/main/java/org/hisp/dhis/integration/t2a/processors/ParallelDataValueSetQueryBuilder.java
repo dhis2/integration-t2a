@@ -25,17 +25,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.model;
+package org.hisp.dhis.integration.t2a.processors;
 
-import java.util.List;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
+import org.hisp.dhis.integration.t2a.routes.T2ARouter;
 
-import lombok.Data;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Data
-@JsonIgnoreProperties( ignoreUnknown = true )
-public class OrganisationUnits
+public class ParallelDataValueSetQueryBuilder implements Processor
 {
-    private List<OrganisationUnit> organisationUnits;
+    public void process( Exchange exchange )
+    {
+        ProgramIndicator programIndicator = exchange.getMessage().getBody( ProgramIndicator.class );
+
+        String ouLevel = exchange.getProperty( T2ARouter.PROPERTY_OU_LEVEL, String.class );
+        String period = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
+        String outputIdScheme = exchange.getProperty( T2ARouter.PROPERTY_OUTPUT_ID_SCHEME, String.class );
+
+        // TODO: get these strings from properties file and make a more robust
+        // builder
+        String query = "dimension=dx:" + programIndicator.getId() +
+            "&dimension=ou:LEVEL-" + ouLevel +
+            "&dimension=pe:" + period +
+            "&outputIdScheme=" + outputIdScheme;
+
+        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+    }
 }

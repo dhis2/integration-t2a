@@ -25,26 +25,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.model;
+package org.hisp.dhis.integration.t2a.processors;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Data
-@EqualsAndHashCode
-@JsonIgnoreProperties( ignoreUnknown = true )
-public class DataValue
+// TODO redundant class: remove
+public class GatherProgramIndicatorQueryString implements Processor
 {
-    private String dataElement;
+    @Override
+    public void process( Exchange exchange )
+        throws Exception
+    {
+        ProgramIndicatorGroup programIndicatorGroup = exchange.getIn().getBody( ProgramIndicatorGroup.class );
 
-    private String period;
-
-    private String orgUnit;
-
-    private String categoryOptionCombo;
-
-    @EqualsAndHashCode.Exclude
-    private String value;
+        // transform to a ';' separated list of PI uids
+        exchange.getIn().setBody( programIndicatorGroup.programIndicatorAsString() );
+    }
 }

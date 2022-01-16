@@ -25,16 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration;
+package org.hisp.dhis.integration.t2a.model;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import lombok.Data;
 
-@SpringBootApplication
-public class Application
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@Data
+@JsonIgnoreProperties( ignoreUnknown = true )
+public class OrganisationUnit
 {
-    public static void main( String[] args )
-    {
-        SpringApplication.run( Application.class, args );
-    }
+    private String id;
 }

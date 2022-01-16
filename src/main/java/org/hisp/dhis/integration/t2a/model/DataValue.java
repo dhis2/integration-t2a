@@ -25,21 +25,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.model;
-
-import java.util.List;
+package org.hisp.dhis.integration.t2a.model;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
+@EqualsAndHashCode
 @JsonIgnoreProperties( ignoreUnknown = true )
-public class ProgramIndicator
+public class DataValue
 {
-    private String id;
+    private String dataElement;
 
-    private String aggregateExportCategoryOptionCombo;
+    private String period;
 
-    private List<AttributeValue> attributeValues;
+    private String orgUnit;
+
+    private String categoryOptionCombo;
+
+    @EqualsAndHashCode.Exclude
+    private String value;
 }
