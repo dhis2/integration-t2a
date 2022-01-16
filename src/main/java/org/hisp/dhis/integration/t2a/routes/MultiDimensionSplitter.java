@@ -25,9 +25,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.routes;
+package org.hisp.dhis.integration.t2a.routes;
 
-import static org.dhis2.integration.routes.T2ARouterNew.PROPERTY_ALL_ORG_UNITS;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouterNew.PROPERTY_ALL_ORG_UNITS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import java.util.List;
 import org.apache.camel.Exchange;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.dhis2.integration.model.*;
+import org.hisp.dhis.integration.t2a.model.*;
 
 public class MultiDimensionSplitter
 {

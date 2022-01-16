@@ -31,11 +31,9 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.dhis2.integration.model.OrganisationUnit;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.model.Split;
-import org.dhis2.integration.routes.T2ARouterNew;
+import org.hisp.dhis.integration.t2a.model.OrganisationUnit;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
+import org.hisp.dhis.integration.t2a.model.Split;
 import org.hisp.dhis.integration.t2a.routes.T2ARouterNew;
 
 public class AnalyticsGridQueryBuilder implements Processor
