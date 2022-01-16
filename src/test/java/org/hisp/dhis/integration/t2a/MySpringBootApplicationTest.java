@@ -25,41 +25,50 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a;
 
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.dhis2.integration.model.OrganisationUnit;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.model.Split;
-import org.dhis2.integration.routes.T2ARouterNew;
+import org.apache.camel.CamelContext;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.builder.AdviceWith;
+import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
-public class AnalyticsGridQueryBuilder implements Processor
+@SpringBootTest
+@CamelSpringBootTest
+public class MySpringBootApplicationTest
 {
-    private static final Logger LOG = LogManager.getLogger( AnalyticsGridQueryBuilder.class );
 
-    public void process( Exchange exchange )
+    @Autowired
+    private CamelContext camelContext;
+
+    @Autowired
+    private ProducerTemplate producerTemplate;
+
+    // @Test
+    public void test()
+        throws Exception
     {
-        Split split = exchange.getMessage().getBody( Split.class );
+        MockEndpoint mock = camelContext.getEndpoint( "mock:stream:out", MockEndpoint.class );
 
-        ProgramIndicator programIndicator = split.getProgramIndicator();
-        OrganisationUnit ou = split.getOu();
+        AdviceWith.adviceWith( camelContext, "hello",
+            // intercepting an exchange on route
+            r -> {
+                // replacing consumer with direct component
+                r.replaceFromWith( "direct:start" );
+                // mocking producer
+                r.mockEndpoints( "stream*" );
+            } );
 
-        String period = exchange.getProperty( T2ARouterNew.PROPERTY_PERIOD, String.class );
+        // setting expectations
+        mock.expectedMessageCount( 1 );
+        mock.expectedBodiesReceived( "Hello World" );
 
-        // builder
-        String query = "dimension=dx:" + programIndicator.getId() +
-            "&dimension=ou:" + ou.getId() +
-            "&dimension=pe:" + period +
-            "&rows=ou;pe&columns=dx&skipMeta=true";
+        // invoking consumer
+        producerTemplate.sendBody( "direct:start", null );
 
-        LOG.info( "Building analytics query for ou[{}], period[{}], indicator[{}]", ou.getId(), period,
-            programIndicator.getId() );
-
-        // set program indicator of this route to use later
-        exchange.setProperty( T2ARouterNew.PROPERTY_PROGRAM_INDICATOR, programIndicator );
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+        // asserting mock is satisfied
+        mock.assertIsSatisfied();
     }
 }

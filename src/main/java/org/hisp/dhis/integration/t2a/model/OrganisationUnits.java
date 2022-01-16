@@ -25,31 +25,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a.model;
 
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
-import org.dhis2.integration.model.ProgramIndicatorGroup;
-import org.dhis2.integration.routes.T2ARouter;
+import java.util.List;
 
-public class DataValueSetQueryBuilder implements Processor
+import lombok.Data;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@Data
+@JsonIgnoreProperties( ignoreUnknown = true )
+public class OrganisationUnits
 {
-    public void process( Exchange exchange )
-    {
-        ProgramIndicatorGroup programIndicatorGroup = exchange.getProperty( T2ARouter.PROPERTY_PROGRAM_INDICATORS,
-            ProgramIndicatorGroup.class );
-
-        String ouLevel = exchange.getProperty( T2ARouter.PROPERTY_OU_LEVEL, String.class );
-        String period = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
-        String outputIdScheme = exchange.getProperty( T2ARouter.PROPERTY_OUTPUT_ID_SCHEME, String.class );
-
-        // TODO: get these strings from properties file and make a more robust
-        // builder
-        String query = "dimension=dx:" + programIndicatorGroup.programIndicatorAsString() +
-            "&dimension=ou:LEVEL-" + ouLevel +
-            "&dimension=pe:" + period +
-            "&outputIdScheme=" + outputIdScheme;
-
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
-    }
+    private List<OrganisationUnit> organisationUnits;
 }

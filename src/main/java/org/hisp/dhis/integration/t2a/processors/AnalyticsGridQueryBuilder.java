@@ -25,22 +25,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a.processors;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.dhis2.integration.model.ProgramIndicatorGroup;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.dhis2.integration.model.OrganisationUnit;
+import org.dhis2.integration.model.ProgramIndicator;
+import org.dhis2.integration.model.Split;
+import org.dhis2.integration.routes.T2ARouterNew;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
+import org.hisp.dhis.integration.t2a.routes.T2ARouterNew;
 
-// TODO redundant class: remove
-public class GatherProgramIndicatorQueryString implements Processor
+public class AnalyticsGridQueryBuilder implements Processor
 {
-    @Override
-    public void process( Exchange exchange )
-        throws Exception
-    {
-        ProgramIndicatorGroup programIndicatorGroup = exchange.getIn().getBody( ProgramIndicatorGroup.class );
+    private static final Logger LOG = LogManager.getLogger( AnalyticsGridQueryBuilder.class );
 
-        // transform to a ';' separated list of PI uids
-        exchange.getIn().setBody( programIndicatorGroup.programIndicatorAsString() );
+    public void process( Exchange exchange )
+    {
+        Split split = exchange.getMessage().getBody( Split.class );
+
+        ProgramIndicator programIndicator = split.getProgramIndicator();
+        OrganisationUnit ou = split.getOu();
+
+        String period = exchange.getProperty( T2ARouterNew.PROPERTY_PERIOD, String.class );
+
+        // builder
+        String query = "dimension=dx:" + programIndicator.getId() +
+            "&dimension=ou:" + ou.getId() +
+            "&dimension=pe:" + period +
+            "&rows=ou;pe&columns=dx&skipMeta=true";
+
+        LOG.info( "Building analytics query for ou[{}], period[{}], indicator[{}]", ou.getId(), period,
+            programIndicator.getId() );
+
+        // set program indicator of this route to use later
+        exchange.setProperty( T2ARouterNew.PROPERTY_PROGRAM_INDICATOR, programIndicator );
+        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
     }
 }

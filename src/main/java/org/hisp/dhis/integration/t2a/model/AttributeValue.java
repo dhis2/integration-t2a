@@ -25,50 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration;
+package org.hisp.dhis.integration.t2a.model;
 
-import org.apache.camel.CamelContext;
-import org.apache.camel.ProducerTemplate;
-import org.apache.camel.builder.AdviceWith;
-import org.apache.camel.component.mock.MockEndpoint;
-import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import lombok.Data;
 
-@SpringBootTest
-@CamelSpringBootTest
-public class MySpringBootApplicationTest
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@Data
+@JsonIgnoreProperties( ignoreUnknown = true )
+public class AttributeValue
 {
-
-    @Autowired
-    private CamelContext camelContext;
-
-    @Autowired
-    private ProducerTemplate producerTemplate;
-
-    // @Test
-    public void test()
-        throws Exception
-    {
-        MockEndpoint mock = camelContext.getEndpoint( "mock:stream:out", MockEndpoint.class );
-
-        AdviceWith.adviceWith( camelContext, "hello",
-            // intercepting an exchange on route
-            r -> {
-                // replacing consumer with direct component
-                r.replaceFromWith( "direct:start" );
-                // mocking producer
-                r.mockEndpoints( "stream*" );
-            } );
-
-        // setting expectations
-        mock.expectedMessageCount( 1 );
-        mock.expectedBodiesReceived( "Hello World" );
-
-        // invoking consumer
-        producerTemplate.sendBody( "direct:start", null );
-
-        // asserting mock is satisfied
-        mock.assertIsSatisfied();
-    }
+    private String value;
 }

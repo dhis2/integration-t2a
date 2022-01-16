@@ -25,26 +25,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.model;
+package org.hisp.dhis.integration.t2a.processors;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Data
-@EqualsAndHashCode
-@JsonIgnoreProperties( ignoreUnknown = true )
-public class DataValue
+public class OrganisationUnitQueryBuilder implements Processor
 {
-    private String dataElement;
+    @Override
+    public void process( Exchange exchange )
+        throws Exception
+    {
+        String ou = exchange.getProperty( "ou", String.class );
 
-    private String period;
+        String query = "paging=false&fields=id&filter=level:eq:" + ou;
 
-    private String orgUnit;
-
-    private String categoryOptionCombo;
-
-    @EqualsAndHashCode.Exclude
-    private String value;
+        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+    }
 }

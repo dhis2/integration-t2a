@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.routes;
+package org.hisp.dhis.integration.t2a.routes;
 
 import java.util.Base64;
 import java.util.Optional;
@@ -35,13 +35,13 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
 import org.apache.camel.component.properties.PropertiesComponent;
-import org.dhis2.integration.model.DataValues;
-import org.dhis2.integration.model.OrganisationUnits;
-import org.dhis2.integration.model.ProgramIndicatorGroup;
-import org.dhis2.integration.processors.DataValueSetQueryBuilder;
-import org.dhis2.integration.processors.OrganisationUnitQueryBuilder;
-import org.dhis2.integration.processors.ParallelDataValueSetQueryBuilder;
-import org.dhis2.integration.processors.PostDataValueSetQueryBuilder;
+import org.hisp.dhis.integration.t2a.model.DataValues;
+import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
+import org.hisp.dhis.integration.t2a.processors.DataValueSetQueryBuilder;
+import org.hisp.dhis.integration.t2a.processors.OrganisationUnitQueryBuilder;
+import org.hisp.dhis.integration.t2a.processors.ParallelDataValueSetQueryBuilder;
+import org.hisp.dhis.integration.t2a.processors.PostDataValueSetQueryBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
