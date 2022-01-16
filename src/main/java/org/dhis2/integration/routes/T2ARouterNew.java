@@ -35,6 +35,7 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
 import org.apache.camel.component.properties.PropertiesComponent;
+import org.dhis2.integration.model.OrganisationUnits;
 import org.dhis2.integration.model.ProgramIndicatorGroup;
 import org.dhis2.integration.processors.*;
 import org.springframework.http.HttpHeaders;
@@ -71,6 +72,8 @@ public class T2ARouterNew extends RouteBuilder
     public static final String PROPERTY_PERIOD = "pe";
 
     public static final String PROPERTY_OUTPUT_ID_SCHEME = "outputIdScheme";
+
+    public static final String PROPERTY_ALL_ORG_UNITS = "ous";
 
     @Override
     public void configure()
@@ -114,10 +117,24 @@ public class T2ARouterNew extends RouteBuilder
             .setProperty( PROPERTY_OUTPUT_ID_SCHEME, constant( outputIdScheme ) )
             .to( "direct:t2-auth" );
 
+        from( "direct:t2-auth" )
+            .process( new OrganisationUnitQueryBuilder() )
+            .log( "Retrieving organisation units" )
+            .toD(
+                "https://{{dhis2.t2a.host}}/{{dhis2.t2a.path}}/api/organisationUnits" )
+            .unmarshal().json( OrganisationUnits.class )
+            .log( "Organisation units retrieved" )
+            .setProperty( PROPERTY_ALL_ORG_UNITS, simple( "${body}" ) )
+            .removeHeader( Exchange.HTTP_QUERY ) // removing query string, so it
+            // won't affect the rest of the
+            // route
+            .setBody().simple( "${null}" )
+            .to( "direct:t2-ous" );
+
         // start analytics task
         if ( runAnalytics )
         {
-            from( "direct:t2-auth" )
+            from( "direct:t2-ous" )
                 .setHeader( "CamelHttpMethod", constant( "PUT" ) )
                 .log( "Scheduling analytics task" )
                 .to( "https://{{dhis2.t2a.host}}/{{dhis2.t2a.path}}/api/resourceTables/analytics" )
@@ -151,7 +168,7 @@ public class T2ARouterNew extends RouteBuilder
         }
         else
         {
-            from( "direct:t2-auth" )
+            from( "direct:t2-ous" )
                 .to( "direct:analytics-done" );
         }
 
@@ -177,7 +194,8 @@ public class T2ARouterNew extends RouteBuilder
              */
             from( "direct:pis" )
                 .routeId( "t2a-parallel" )
-                .split( method( new ProgramIndicatorSplitter(),
+                .log( "Splitting the route" )
+                .split( method( new MultiDimensionSplitter(),
                     "split" ) )
                 .executorService( programIndicatorPool )
                 .log( "Processing programIndicator: ${body}" )

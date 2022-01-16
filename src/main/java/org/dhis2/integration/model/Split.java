@@ -25,41 +25,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.dhis2.integration.model;
 
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.dhis2.integration.model.OrganisationUnit;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.model.Split;
-import org.dhis2.integration.routes.T2ARouterNew;
+import lombok.Data;
 
-public class AnalyticsGridQueryBuilder implements Processor
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@Data
+@JsonIgnoreProperties( ignoreUnknown = true )
+public class Split
 {
-    private static final Logger LOG = LogManager.getLogger( AnalyticsGridQueryBuilder.class );
+    private ProgramIndicator programIndicator;
 
-    public void process( Exchange exchange )
-    {
-        Split split = exchange.getMessage().getBody( Split.class );
-
-        ProgramIndicator programIndicator = split.getProgramIndicator();
-        OrganisationUnit ou = split.getOu();
-
-        String period = exchange.getProperty( T2ARouterNew.PROPERTY_PERIOD, String.class );
-
-        // builder
-        String query = "dimension=dx:" + programIndicator.getId() +
-            "&dimension=ou:" + ou.getId() +
-            "&dimension=pe:" + period +
-            "&rows=ou;pe&columns=dx&skipMeta=true";
-
-        LOG.info( "Building analytics query for ou[{}], period[{}], indicator[{}]", ou.getId(), period,
-            programIndicator.getId() );
-
-        // set program indicator of this route to use later
-        exchange.setProperty( T2ARouterNew.PROPERTY_PROGRAM_INDICATOR, programIndicator );
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
-    }
+    private OrganisationUnit ou;
 }

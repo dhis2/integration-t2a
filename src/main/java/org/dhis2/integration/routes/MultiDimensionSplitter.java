@@ -25,41 +25,45 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.dhis2.integration.routes;
+
+import static org.dhis2.integration.routes.T2ARouterNew.PROPERTY_ALL_ORG_UNITS;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.dhis2.integration.model.OrganisationUnit;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.model.Split;
-import org.dhis2.integration.routes.T2ARouterNew;
+import org.dhis2.integration.model.*;
 
-public class AnalyticsGridQueryBuilder implements Processor
+public class MultiDimensionSplitter
 {
-    private static final Logger LOG = LogManager.getLogger( AnalyticsGridQueryBuilder.class );
+    private static Logger LOG = LogManager.getLogger( MultiDimensionSplitter.class );
 
-    public void process( Exchange exchange )
+    public List<Split> split( Exchange exchange )
     {
-        Split split = exchange.getMessage().getBody( Split.class );
+        ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
+        List<ProgramIndicator> programIndicators = programIndicatorGroup.getProgramIndicators();
 
-        ProgramIndicator programIndicator = split.getProgramIndicator();
-        OrganisationUnit ou = split.getOu();
+        OrganisationUnits ous = exchange.getProperty( PROPERTY_ALL_ORG_UNITS, OrganisationUnits.class );
+        List<OrganisationUnit> organisationUnits = ous.getOrganisationUnits();
 
-        String period = exchange.getProperty( T2ARouterNew.PROPERTY_PERIOD, String.class );
+        List<Split> splits = new ArrayList<>();
 
-        // builder
-        String query = "dimension=dx:" + programIndicator.getId() +
-            "&dimension=ou:" + ou.getId() +
-            "&dimension=pe:" + period +
-            "&rows=ou;pe&columns=dx&skipMeta=true";
+        for ( ProgramIndicator programIndicator : programIndicators )
+        {
+            for ( OrganisationUnit organisationUnit : organisationUnits )
+            {
+                Split split = new Split();
+                split.setProgramIndicator( programIndicator );
+                split.setOu( organisationUnit );
+                splits.add( split );
+            }
+        }
 
-        LOG.info( "Building analytics query for ou[{}], period[{}], indicator[{}]", ou.getId(), period,
-            programIndicator.getId() );
+        LOG.info( "{} splits created", splits.size() );
 
-        // set program indicator of this route to use later
-        exchange.setProperty( T2ARouterNew.PROPERTY_PROGRAM_INDICATOR, programIndicator );
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+        return splits;
     }
 }

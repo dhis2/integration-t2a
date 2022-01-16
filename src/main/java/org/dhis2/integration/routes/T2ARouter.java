@@ -50,6 +50,7 @@ import org.springframework.http.MediaType;
  * pool size is too big it breaks the database :-( )
  */
 // @Component
+@Deprecated
 public class T2ARouter extends RouteBuilder
 {
     private static final String CONFIG_D2_USER = "dhis2.t2a.user";
