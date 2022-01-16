@@ -25,19 +25,37 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.routes;
+package org.hisp.dhis.integration.t2a.model;
 
 import java.util.List;
 
-import org.apache.camel.Exchange;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.model.ProgramIndicatorGroup;
+import lombok.Data;
 
-public class ProgramIndicatorSplitter
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@Data
+@JsonIgnoreProperties( ignoreUnknown = true )
+public class ProgramIndicatorGroup
 {
-    public List<ProgramIndicator> split( Exchange exchange )
+    private List<ProgramIndicator> programIndicators;
+
+    public String programIndicatorAsString()
     {
-        ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
-        return programIndicatorGroup.getProgramIndicators();
+        StringBuilder result = new StringBuilder();
+
+        int x = 0;
+
+        for ( ProgramIndicator pi : programIndicators )
+        {
+            result.append( pi.getId() ).append( ";" );
+
+            // todo remove break
+            if ( x++ == 3 )
+            {
+                break;
+            }
+        }
+
+        return result.deleteCharAt( result.length() - 1 ).toString();
     }
 }

@@ -25,13 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a.processors;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.dhis2.integration.model.ProgramIndicator;
-import org.dhis2.integration.routes.T2ARouter;
-import org.dhis2.integration.routes.T2ARouterNew;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
+import org.hisp.dhis.integration.t2a.routes.T2ARouter;
+import org.hisp.dhis.integration.t2a.routes.T2ARouterNew;
 
 public class AnalyticsGridQueryBuilder implements Processor
 {

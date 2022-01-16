@@ -25,22 +25,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a.processors;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.dhis2.integration.model.ProgramIndicatorGroup;
 
-// TODO redundant class: remove
-public class GatherProgramIndicatorQueryString implements Processor
+public class OrganisationUnitQueryBuilder implements Processor
 {
     @Override
     public void process( Exchange exchange )
         throws Exception
     {
-        ProgramIndicatorGroup programIndicatorGroup = exchange.getIn().getBody( ProgramIndicatorGroup.class );
+        String ou = exchange.getProperty( "ou", String.class );
 
-        // transform to a ';' separated list of PI uids
-        exchange.getIn().setBody( programIndicatorGroup.programIndicatorAsString() );
+        String query = "paging=false&fields=id&filter=level:eq:" + ou;
+
+        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
     }
 }

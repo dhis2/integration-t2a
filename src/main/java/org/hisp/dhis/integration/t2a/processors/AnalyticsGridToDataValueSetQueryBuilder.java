@@ -25,14 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.processors;
+package org.hisp.dhis.integration.t2a.processors;
 
 import java.util.*;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.dhis2.integration.model.*;
-import org.dhis2.integration.routes.T2ARouterNew;
+import org.hisp.dhis.integration.t2a.model.*;
+import org.hisp.dhis.integration.t2a.routes.T2ARouterNew;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;

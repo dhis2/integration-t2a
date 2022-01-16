@@ -25,17 +25,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.dhis2.integration.model;
+package org.hisp.dhis.integration.t2a.routes;
 
 import java.util.List;
 
-import lombok.Data;
+import org.apache.camel.Exchange;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
+import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@Data
-@JsonIgnoreProperties( ignoreUnknown = true )
-public class AnalyticsGrid
+public class ProgramIndicatorSplitter
 {
-    private List<List<String>> rows;
+    public List<ProgramIndicator> split( Exchange exchange )
+    {
+        ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
+        return programIndicatorGroup.getProgramIndicators();
+    }
 }
