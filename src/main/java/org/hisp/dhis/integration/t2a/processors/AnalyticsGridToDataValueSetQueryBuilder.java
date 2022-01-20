@@ -32,7 +32,7 @@ import java.util.*;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.hisp.dhis.integration.t2a.model.*;
-import org.hisp.dhis.integration.t2a.routes.T2ARouterNew;
+import org.hisp.dhis.integration.t2a.routes.T2ARouter;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -55,8 +55,8 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         String analyticsGridStr = exchange.getMessage().getBody( String.class );
         AnalyticsGrid analyticsGrid = mapper.readValue( analyticsGridStr, AnalyticsGrid.class );
 
-        ProgramIndicator programIndicator = exchange.getProperty( T2ARouterNew.PROPERTY_PROGRAM_INDICATOR,
-            ProgramIndicator.class );
+        Dimensions dimensions = exchange.getProperty( T2ARouter.PROPERTY_DIMENSIONS,
+            Dimensions.class );
 
         String query = "dataElementIdScheme=CODE" +
             "&categoryOptionComboIdScheme=CODE" +
@@ -66,27 +66,29 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
         exchange.getMessage().setHeader( Exchange.HTTP_METHOD, "POST" );
 
-        for ( List<String> row : analyticsGrid.getRows() )
-        {
-            String ou = row.get( 0 );
-            String pe = row.get( 4 );
-            String value = row.get( 8 );
+        Optional<AttributeValue> aggregateDataExportDataElementOptional = dimensions.getProgramIndicator()
+            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( "vudyDP7jUy5" ) )
+            .findFirst();
 
-            for ( AttributeValue attributeValue : programIndicator.getAttributeValues() )
+        if ( aggregateDataExportDataElementOptional.isPresent() )
+        {
+            for ( List<String> row : analyticsGrid.getRows() )
             {
+                String ou = row.get( 0 );
+                String pe = row.get( 4 );
+                String value = row.get( 8 );
+
                 DataValue dv = new DataValue();
                 dv.setValue( StringUtils.hasText( value ) ? value : "0" );
                 dv.setOrgUnit( ou );
                 dv.setPeriod( pe );
-                dv.setDataElement( attributeValue.getValue() );
-                dv.setCategoryOptionCombo( programIndicator.getAggregateExportCategoryOptionCombo() );
+                dv.setDataElement( aggregateDataExportDataElementOptional.get().getValue() );
+                dv.setCategoryOptionCombo( dimensions.getProgramIndicator().getAggregateExportCategoryOptionCombo() );
 
                 dataValues.add( dv );
             }
-
         }
 
-        // creating the final data values
         DataValues finalDataValues = new DataValues();
         finalDataValues.setDataValues( dataValues );
 

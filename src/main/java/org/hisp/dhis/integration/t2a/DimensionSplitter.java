@@ -25,31 +25,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.integration.t2a.processors;
+package org.hisp.dhis.integration.t2a;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
+import org.hisp.dhis.integration.t2a.model.Dimensions;
+import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.routes.T2ARouter;
 
-public class DataValueSetQueryBuilder implements Processor
+public class DimensionSplitter
 {
-    public void process( Exchange exchange )
+    public List<Dimensions> split( Exchange exchange )
     {
-        ProgramIndicatorGroup programIndicatorGroup = exchange.getProperty( T2ARouter.PROPERTY_PROGRAM_INDICATORS,
-            ProgramIndicatorGroup.class );
+        String periods = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
+        OrganisationUnits organisationUnits = exchange.getProperty( T2ARouter.PROPERTY_ALL_ORG_UNITS,
+            OrganisationUnits.class );
+        ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
+        List<Dimensions> dimensions = Arrays.stream( periods.split( "," ) ).flatMap(
+            pe -> organisationUnits.getOrganisationUnits().stream()
+                .flatMap( ou -> programIndicatorGroup.getProgramIndicators().
+                    stream().
+                    map( pi -> new Dimensions( pe, ou, pi ) ) ) ).collect( Collectors.toList() );
 
-        String ouLevel = exchange.getProperty( T2ARouter.PROPERTY_OU_LEVEL, String.class );
-        String period = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
-        String outputIdScheme = exchange.getProperty( T2ARouter.PROPERTY_OUTPUT_ID_SCHEME, String.class );
-
-        // TODO: get these strings from properties file and make a more robust
-        // builder
-        String query = "dimension=dx:" + programIndicatorGroup.programIndicatorAsString() +
-            "&dimension=ou:LEVEL-" + ouLevel +
-            "&dimension=pe:" + period +
-            "&outputIdScheme=" + outputIdScheme;
-
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+        return dimensions;
     }
 }

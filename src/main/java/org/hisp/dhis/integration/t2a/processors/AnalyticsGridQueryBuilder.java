@@ -29,27 +29,20 @@ package org.hisp.dhis.integration.t2a.processors;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
+import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouter;
-import org.hisp.dhis.integration.t2a.routes.T2ARouterNew;
 
 public class AnalyticsGridQueryBuilder implements Processor
 {
     public void process( Exchange exchange )
     {
-        ProgramIndicator programIndicator = exchange.getMessage().getBody( ProgramIndicator.class );
-
-        String ouLevel = exchange.getProperty( T2ARouter.PROPERTY_OU_LEVEL, String.class );
-        String period = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
-
-        // builder
-        String query = "dimension=dx:" + programIndicator.getId() +
-            "&dimension=ou:LEVEL-" + ouLevel +
-            "&dimension=pe:" + period +
+        Dimensions dimensions = exchange.getMessage().getBody( Dimensions.class );
+        String query = "dimension=dx:" + dimensions.getProgramIndicator().getId() +
+            "&dimension=ou:" + dimensions.getOrganisationUnit().getId() +
+            "&dimension=pe:" + dimensions.getPeriod() +
             "&rows=ou;pe&columns=dx&skipMeta=true";
 
-        // set program indicator of this route to use later
-        exchange.setProperty( T2ARouterNew.PROPERTY_PROGRAM_INDICATOR, programIndicator );
+        exchange.setProperty( T2ARouter.PROPERTY_DIMENSIONS, dimensions );
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
     }
 }
