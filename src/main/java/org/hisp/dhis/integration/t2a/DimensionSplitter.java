@@ -47,9 +47,9 @@ public class DimensionSplitter
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
         List<Dimensions> dimensions = Arrays.stream( periods.split( "," ) ).flatMap(
             pe -> organisationUnits.getOrganisationUnits().stream()
-                .flatMap( ou -> programIndicatorGroup.getProgramIndicators().
-                    stream().
-                    map( pi -> new Dimensions( pe, ou, pi ) ) ) ).collect( Collectors.toList() );
+                .flatMap( ou -> programIndicatorGroup.getProgramIndicators().stream()
+                    .map( pi -> new Dimensions( pe, ou, pi ) ) ) )
+            .collect( Collectors.toList() );
 
         return dimensions;
     }

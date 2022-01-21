@@ -27,11 +27,16 @@
  */
 package org.hisp.dhis.integration.t2a;
 
-import com.github.javafaker.Faker;
-import com.github.javafaker.Name;
-import io.restassured.RestAssured;
-import io.restassured.builder.RequestSpecBuilder;
-import io.restassured.http.ContentType;
+import static io.restassured.RestAssured.given;
+import static io.restassured.RestAssured.when;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.Base64;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.AdviceWith;
 import org.apache.camel.component.mock.MockEndpoint;
@@ -53,15 +58,12 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.Base64;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+import com.github.javafaker.Faker;
+import com.github.javafaker.Name;
 
-import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.when;
+import io.restassured.RestAssured;
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.http.ContentType;
 
 @SpringBootTest
 @CamelSpringBootTest
@@ -81,18 +83,17 @@ public class T2ARouteBuilderTest
     @Container
     public static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>(
         DockerImageName.parse( "postgis/postgis:12-3.2-alpine" ).asCompatibleSubstituteFor( "postgres" ) )
-        .withDatabaseName( "dhis2" )
-        .withNetworkAliases( "db" )
-        .withUsername( "dhis" )
-        .withPassword( "dhis" ).withNetwork( network );
+            .withDatabaseName( "dhis2" )
+            .withNetworkAliases( "db" )
+            .withUsername( "dhis" )
+            .withPassword( "dhis" ).withNetwork( network );
 
     @Container
-    public static GenericContainer<?> dhis2Container = new GenericContainer<>( "dhis2/core:2.36.0" ).
-        dependsOn( postgreSQLContainer ).
-        withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE ).
-        withNetwork( network ).withExposedPorts( 8080 ).
-        waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) ).
-        withEnv( "WAIT_FOR_DB_CONTAINER", "db" + ":" + 5432 + " -t 0" );
+    public static GenericContainer<?> dhis2Container = new GenericContainer<>( "dhis2/core:2.36.0" )
+        .dependsOn( postgreSQLContainer )
+        .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
+        .withNetwork( network ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
+        .withEnv( "WAIT_FOR_DB_CONTAINER", "db" + ":" + 5432 + " -t 0" );
 
     @BeforeAll
     public static void beforeAll()
@@ -101,9 +102,9 @@ public class T2ARouteBuilderTest
         System.setProperty( "dhis2.api.url",
             String.format( "http://localhost:%s/api", dhis2Container.getFirstMappedPort() ) );
         RestAssured.baseURI = "http://" + dhis2Container.getHost() + ":" + dhis2Container.getFirstMappedPort();
-        RestAssured.requestSpecification = new RequestSpecBuilder().build().contentType( ContentType.JSON ).
-            header( HttpHeaders.AUTHORIZATION,
-                "Basic " + Base64.getEncoder().encodeToString( ("admin" + ":" + "district").getBytes() ) );
+        RestAssured.requestSpecification = new RequestSpecBuilder().build().contentType( ContentType.JSON ).header(
+            HttpHeaders.AUTHORIZATION,
+            "Basic " + Base64.getEncoder().encodeToString( ("admin" + ":" + "district").getBytes() ) );
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
 
         importMetaData();
@@ -123,16 +124,15 @@ public class T2ARouteBuilderTest
             Thread.currentThread().getContextClassLoader().getResourceAsStream( "programIndicator.json" ),
             Charset.defaultCharset() );
 
-        given().queryParam( "mergeMode", "MERGE" ).
-            body( programIndicator ).
-            when().put( "api/programIndicators/BeNeZroDY95" ).
-            then().statusCode( 200 );
+        given().queryParam( "mergeMode", "MERGE" ).body( programIndicator ).when()
+            .put( "api/programIndicators/BeNeZroDY95" ).then().statusCode( 200 );
     }
 
     private static String createAggregateDataElement()
     {
         return given().body( new HashMap<>()
-            {{
+        {
+            {
                 put( "aggregationType", "SUM" );
                 put( "code", "InfantsWithVisitUnder1Year" );
                 put( "domainType", "AGGREGATE" );
@@ -140,50 +140,54 @@ public class T2ARouteBuilderTest
                 put( "name", "Infants with visit under 1 year" );
                 put( "shortName", "Infants with visit under 1 year" );
                 put( "categoryCombo", new HashMap<>()
-                {{
-                    put( "id", "bjDvmb4bfuf" );
-                }} );
+                {
+                    {
+                        put( "id", "bjDvmb4bfuf" );
+                    }
+                } );
                 put( "aggregationLevels", List.of( 1 ) );
-            }} ).
-            when().post( "api/dataElements" ).
-            then().statusCode( 201 ).extract().body().path( "response.uid" );
+            }
+        } ).when().post( "api/dataElements" ).then().statusCode( 201 ).extract().body().path( "response.uid" );
     }
 
     private static void addOrgUnitToProgram( String orgUnitId )
     {
-        when().post( "api/programs/SSLpOM0r1U7/organisationUnits/{organisationUnitId}", orgUnitId ).
-            then().statusCode( 204 );
+        when().post( "api/programs/SSLpOM0r1U7/organisationUnits/{organisationUnitId}", orgUnitId ).then()
+            .statusCode( 204 );
     }
 
     private static void addOrgUnitToUser( String orgUnitId )
     {
-        when().post( "api/users/M5zQapPyTZI/organisationUnits/{organisationUnitId}", orgUnitId ).
-            then().statusCode( 204 );
+        when().post( "api/users/M5zQapPyTZI/organisationUnits/{organisationUnitId}", orgUnitId ).then()
+            .statusCode( 204 );
     }
 
     private static void createOrgUnitLevel()
     {
         given().body( new HashMap<>()
-            {{
+        {
+            {
                 put( "organisationUnitLevels", List.of( new HashMap<>()
-                {{
-                    put( "name", "Level 1" );
-                    put( "level", 1 );
-                }} ) );
-            }} ).
-            when().post( "api/filledOrganisationUnitLevels" ).
-            then().statusCode( 201 );
+                {
+                    {
+                        put( "name", "Level 1" );
+                        put( "level", 1 );
+                    }
+                } ) );
+            }
+        } ).when().post( "api/filledOrganisationUnitLevels" ).then().statusCode( 201 );
     }
 
     private static String createOrgUnit()
     {
         return given().body( new HashMap<>()
-            {{
+        {
+            {
                 put( "name", "Acme" );
                 put( "shortName", "Acme" );
                 put( "openingDate", new Date() );
-            }} ).when().post( "api/organisationUnits" ).
-            then().statusCode( 201 ).extract().path( "response.uid" );
+            }
+        } ).when().post( "api/organisationUnits" ).then().statusCode( 201 ).extract().path( "response.uid" );
     }
 
     private static void importMetaData()
@@ -192,9 +196,8 @@ public class T2ARouteBuilderTest
         String metaData = StreamUtils.copyToString(
             Thread.currentThread().getContextClassLoader().getResourceAsStream( "metadata.json" ),
             Charset.defaultCharset() );
-        given().queryParam( "atomicMode", "NONE" ).body( metaData ).
-            when().post( "api/metadata" ).
-            then().statusCode( 200 );
+        given().queryParam( "atomicMode", "NONE" ).body( metaData ).when().post( "api/metadata" ).then()
+            .statusCode( 200 );
     }
 
     private static void createTrackedEntityInstances()
@@ -208,13 +211,11 @@ public class T2ARouteBuilderTest
         for ( int i = 0; i < 5; i++ )
         {
             Name name = faker.name();
-            String uniqueSystemIdentifier = given().get( "api/trackedEntityAttributes/KSr2yTdu1AI/generate" ).
-                then().statusCode( 200 ).extract().path( "value" );
+            String uniqueSystemIdentifier = given().get( "api/trackedEntityAttributes/KSr2yTdu1AI/generate" ).then()
+                .statusCode( 200 ).extract().path( "value" );
 
             given().body( String.format( trackedEntityInstance, orgUnitId, uniqueSystemIdentifier, name.firstName(),
-                    name.lastName() ) ).
-                when().post( "api/trackedEntityInstances" ).
-                then().statusCode( 200 );
+                name.lastName() ) ).when().post( "api/trackedEntityInstances" ).then().statusCode( 200 );
         }
     }
 
@@ -230,7 +231,7 @@ public class T2ARouteBuilderTest
         camelContext.start();
 
         spyEndpoint.await();
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId, orgUnitId ).
-            then().statusCode( 200 );
+        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId, orgUnitId ).then()
+            .statusCode( 200 );
     }
 }

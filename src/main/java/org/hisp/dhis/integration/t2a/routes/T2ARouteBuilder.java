@@ -89,12 +89,12 @@ public class T2ARouteBuilder extends RouteBuilder
         buildPushAggregatedProgramIndicatorsRoute( authHeader );
     }
 
-    protected void buildSourceRoute(String authHeader, String orgUnitLevel, String periods) {
-        from( "timer:analytics?repeatCount=1&period=3000000" ).
-            setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) ).
-            setProperty( PROPERTY_OU_LEVEL, constant( orgUnitLevel ) ).
-            setProperty( PROPERTY_PERIOD, constant( periods ) ).
-            to( "direct:t2-auth" );
+    protected void buildSourceRoute( String authHeader, String orgUnitLevel, String periods )
+    {
+        from( "timer:analytics?repeatCount=1&period=3000000" )
+            .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
+            .setProperty( PROPERTY_OU_LEVEL, constant( orgUnitLevel ) )
+            .setProperty( PROPERTY_PERIOD, constant( periods ) ).to( "direct:t2-auth" );
     }
 
     protected void buildPollAnalyticsStatusRoute()
@@ -112,7 +112,8 @@ public class T2ARouteBuilder extends RouteBuilder
             .log( "Analytics Status : ${header.status}" );
     }
 
-    protected void buildFetchOrgUnitsRoute() {
+    protected void buildFetchOrgUnitsRoute()
+    {
         from( "direct:t2-auth" ).process( new OrganisationUnitQueryBuilder() )
             .toD( "{{dhis2.api.url}}/organisationUnits" ).unmarshal().json( OrganisationUnits.class )
             .setProperty( PROPERTY_ALL_ORG_UNITS, simple( "${body}" ) )
