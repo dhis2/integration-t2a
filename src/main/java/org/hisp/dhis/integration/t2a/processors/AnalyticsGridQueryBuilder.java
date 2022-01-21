@@ -30,7 +30,7 @@ package org.hisp.dhis.integration.t2a.processors;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
-import org.hisp.dhis.integration.t2a.routes.T2ARouter;
+import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 
 public class AnalyticsGridQueryBuilder implements Processor
 {
@@ -42,7 +42,7 @@ public class AnalyticsGridQueryBuilder implements Processor
             "&dimension=pe:" + dimensions.getPeriod() +
             "&rows=ou;pe&columns=dx&skipMeta=true";
 
-        exchange.setProperty( T2ARouter.PROPERTY_DIMENSIONS, dimensions );
+        exchange.setProperty( T2ARouteBuilder.PROPERTY_DIMENSIONS, dimensions );
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
     }
 }

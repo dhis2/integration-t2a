@@ -32,7 +32,7 @@ import java.util.*;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.hisp.dhis.integration.t2a.model.*;
-import org.hisp.dhis.integration.t2a.routes.T2ARouter;
+import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -55,7 +55,7 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         String analyticsGridStr = exchange.getMessage().getBody( String.class );
         AnalyticsGrid analyticsGrid = mapper.readValue( analyticsGridStr, AnalyticsGrid.class );
 
-        Dimensions dimensions = exchange.getProperty( T2ARouter.PROPERTY_DIMENSIONS,
+        Dimensions dimensions = exchange.getProperty( T2ARouteBuilder.PROPERTY_DIMENSIONS,
             Dimensions.class );
 
         String query = "dataElementIdScheme=CODE" +

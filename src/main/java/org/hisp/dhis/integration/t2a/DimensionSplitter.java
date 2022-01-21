@@ -35,14 +35,14 @@ import org.apache.camel.Exchange;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
-import org.hisp.dhis.integration.t2a.routes.T2ARouter;
+import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 
 public class DimensionSplitter
 {
     public List<Dimensions> split( Exchange exchange )
     {
-        String periods = exchange.getProperty( T2ARouter.PROPERTY_PERIOD, String.class );
-        OrganisationUnits organisationUnits = exchange.getProperty( T2ARouter.PROPERTY_ALL_ORG_UNITS,
+        String periods = exchange.getProperty( T2ARouteBuilder.PROPERTY_PERIOD, String.class );
+        OrganisationUnits organisationUnits = exchange.getProperty( T2ARouteBuilder.PROPERTY_ALL_ORG_UNITS,
             OrganisationUnits.class );
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
         List<Dimensions> dimensions = Arrays.stream( periods.split( "," ) ).flatMap(
