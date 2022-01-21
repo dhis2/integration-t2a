@@ -36,4 +36,5 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class AttributeValue
 {
     private String value;
+    private Attribute attribute;
 }
