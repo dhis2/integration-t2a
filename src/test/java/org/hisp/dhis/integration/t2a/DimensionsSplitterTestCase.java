@@ -29,12 +29,13 @@ package org.hisp.dhis.integration.t2a;
 
 import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_ORG_UNITS_CONFIG;
 import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_PERIODS_CONFIG;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
@@ -44,6 +45,7 @@ import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.DefaultMessage;
 import org.hisp.dhis.integration.t2a.model.*;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
+import org.junit.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -53,6 +55,71 @@ public class DimensionsSplitterTestCase
     @CsvSource( { "true,true,16", "true,false,8", "false,true,4", "false,false,2" } )
     public void testSplit( String splitPeriods, String splitOrgUnits, int expectedDimensionsSize )
     {
+        CamelContext camelContext = createCamelContext( splitPeriods, splitOrgUnits );
+
+        OrganisationUnits organisationUnits = new OrganisationUnits();
+        organisationUnits
+            .setOrganisationUnits( Arrays.asList( new OrganisationUnit().setId( "Bob" ),
+                new OrganisationUnit().setId( "Alice" ) ) );
+
+        ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
+        programIndicatorGroup.setProgramIndicators(
+            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ),
+                new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
+
+        DimensionSplitter dimensionSplitter = new DimensionSplitter();
+        List<Dimensions> dimensions = dimensionSplitter.split(
+            createExchange( camelContext, organisationUnits, "2022Q1,2022Q2,2022Q3,2022Q4", programIndicatorGroup ) );
+        assertEquals( expectedDimensionsSize, dimensions.size() );
+    }
+
+    @Test
+    public void testSplitGivenSplitOrgUnitsConfigIsFalse()
+    {
+        CamelContext camelContext = createCamelContext(
+            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase(), "false" );
+
+        OrganisationUnits organisationUnits = new OrganisationUnits();
+        organisationUnits
+            .setOrganisationUnits(
+                Arrays.asList( new OrganisationUnit().setId( "Bob" ), new OrganisationUnit().setId( "Alice" ) ) );
+
+        ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
+        programIndicatorGroup.setProgramIndicators(
+            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
+
+        DimensionSplitter dimensionSplitter = new DimensionSplitter();
+        List<Dimensions> dimensions = dimensionSplitter
+            .split( createExchange( camelContext, organisationUnits, "2022Q1", programIndicatorGroup ) );
+        assertEquals( 1, dimensions.size() );
+        assertEquals( "Bob;Alice", dimensions.get( 0 ).getOrganisationUnitIds() );
+        assertEquals( "2022Q1", dimensions.get( 0 ).getPeriods() );
+    }
+
+    @Test
+    public void testSplitGivenSplitPeriodsConfigIsFalse()
+    {
+        CamelContext camelContext = createCamelContext( "false",
+            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
+
+        OrganisationUnits organisationUnits = new OrganisationUnits();
+        organisationUnits
+            .setOrganisationUnits( Arrays.asList( new OrganisationUnit().setId( "Bob" ) ) );
+
+        ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
+        programIndicatorGroup.setProgramIndicators(
+            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
+
+        DimensionSplitter dimensionSplitter = new DimensionSplitter();
+        List<Dimensions> dimensions = dimensionSplitter.split(
+            createExchange( camelContext, organisationUnits, "2022Q1,2022Q2,2022Q3,2022Q4", programIndicatorGroup ) );
+        assertEquals( 1, dimensions.size() );
+        assertEquals( "2022Q1;2022Q2;2022Q3;2022Q4", dimensions.get( 0 ).getPeriods() );
+        assertEquals( "Bob", dimensions.get( 0 ).getOrganisationUnitIds() );
+    }
+
+    private CamelContext createCamelContext( String splitPeriods, String splitOrgUnits )
+    {
         Properties properties = new Properties();
         properties.setProperty( SPLIT_PERIODS_CONFIG, splitPeriods );
         properties.setProperty( SPLIT_ORG_UNITS_CONFIG, splitOrgUnits );
@@ -60,26 +127,20 @@ public class DimensionsSplitterTestCase
         CamelContext camelContext = new SimpleCamelContext();
         camelContext.getPropertiesComponent().setInitialProperties( properties );
 
-        OrganisationUnits organisationUnits = new OrganisationUnits();
-        organisationUnits
-            .setOrganisationUnits( Arrays.asList( new OrganisationUnit().setId( UUID.randomUUID().toString() ),
-                new OrganisationUnit().setId( UUID.randomUUID().toString() ) ) );
+        return camelContext;
+    }
 
-        ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
-        programIndicatorGroup.setProgramIndicators(
-            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ),
-                new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
-
+    private Exchange createExchange( CamelContext camelContext, OrganisationUnits organisationUnits, String periods,
+        ProgramIndicatorGroup programIndicatorGroup )
+    {
         Exchange exchange = new DefaultExchange( camelContext );
         Message message = new DefaultMessage( exchange );
         message.setBody( programIndicatorGroup );
 
-        exchange.setProperty( T2ARouteBuilder.PERIOD_PROPERTY, "2022Q1,2022Q2,2022Q3,2022Q4" );
+        exchange.setProperty( T2ARouteBuilder.PERIOD_PROPERTY, periods );
         exchange.setMessage( message );
         exchange.setProperty( T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY, organisationUnits );
 
-        DimensionSplitter dimensionSplitter = new DimensionSplitter();
-        List<Dimensions> dimensions = dimensionSplitter.split( exchange );
-        assertEquals( expectedDimensionsSize, dimensions.size() );
+        return exchange;
     }
 }
