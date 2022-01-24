@@ -44,6 +44,7 @@ import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -68,7 +69,7 @@ import io.restassured.http.ContentType;
 @CamelSpringBootTest
 @Testcontainers
 @UseAdviceWith
-public class T2ARouterTest
+public class T2ARouteBuilderTest
 {
     public static Network network = Network.newNetwork();
 
@@ -88,7 +89,7 @@ public class T2ARouterTest
             .withPassword( "dhis" ).withNetwork( network );
 
     @Container
-    public static GenericContainer<?> dhis2Container = new GenericContainer<>( "dhis2/core:2.37.0" )
+    public static GenericContainer<?> dhis2Container = new GenericContainer<>( "dhis2/core:2.36.0" )
         .dependsOn( postgreSQLContainer )
         .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
         .withNetwork( network ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
@@ -124,7 +125,7 @@ public class T2ARouterTest
             Charset.defaultCharset() );
 
         given().queryParam( "mergeMode", "MERGE" ).body( programIndicator ).when()
-            .put( "api/29/programIndicators/BeNeZroDY95" ).then().statusCode( 200 );
+            .put( "api/programIndicators/BeNeZroDY95" ).then().statusCode( 200 );
     }
 
     private static String createAggregateDataElement()
@@ -146,7 +147,7 @@ public class T2ARouterTest
                 } );
                 put( "aggregationLevels", List.of( 1 ) );
             }
-        } ).when().post( "api/29/dataElements" ).then().statusCode( 201 ).extract().body().path( "response.uid" );
+        } ).when().post( "api/dataElements" ).then().statusCode( 201 ).extract().body().path( "response.uid" );
     }
 
     private static void addOrgUnitToProgram( String orgUnitId )
@@ -174,7 +175,7 @@ public class T2ARouterTest
                     }
                 } ) );
             }
-        } ).when().post( "api/29/filledOrganisationUnitLevels" ).then().statusCode( 201 );
+        } ).when().post( "api/filledOrganisationUnitLevels" ).then().statusCode( 201 );
     }
 
     private static String createOrgUnit()
@@ -210,21 +211,22 @@ public class T2ARouterTest
         for ( int i = 0; i < 5; i++ )
         {
             Name name = faker.name();
-            String uniqueSystemIdentifier = given().get( "api/37/trackedEntityAttributes/KSr2yTdu1AI/generate" ).then()
+            String uniqueSystemIdentifier = given().get( "api/trackedEntityAttributes/KSr2yTdu1AI/generate" ).then()
                 .statusCode( 200 ).extract().path( "value" );
 
             given().body( String.format( trackedEntityInstance, orgUnitId, uniqueSystemIdentifier, name.firstName(),
-                name.lastName() ) ).when().post( "api/37/trackedEntityInstances" ).then().statusCode( 200 );
+                name.lastName() ) ).when().post( "api/trackedEntityInstances" ).then().statusCode( 200 );
         }
     }
 
     @Test
+    @Timeout( 180 )
     public void test()
         throws Exception
     {
         MockEndpoint spyEndpoint = camelContext.getEndpoint( "mock:spy", MockEndpoint.class );
-        spyEndpoint.setExpectedCount( 1 );
-        AdviceWith.adviceWith( camelContext, "t2a-parallel", r -> r.weaveAddLast().to( "mock:spy" ) );
+        spyEndpoint.setExpectedCount( 2 );
+        AdviceWith.adviceWith( camelContext, "analyticsRoute", r -> r.weaveAddLast().to( "mock:spy" ) );
 
         camelContext.start();
 
