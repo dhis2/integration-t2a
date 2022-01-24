@@ -55,7 +55,7 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         String analyticsGridStr = exchange.getMessage().getBody( String.class );
         AnalyticsGrid analyticsGrid = mapper.readValue( analyticsGridStr, AnalyticsGrid.class );
 
-        Dimensions dimensions = exchange.getProperty( T2ARouteBuilder.PROPERTY_DIMENSIONS,
+        Dimensions dimensions = exchange.getProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY,
             Dimensions.class );
 
         String query = "dataElementIdScheme=CODE" +

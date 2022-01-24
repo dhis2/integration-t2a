@@ -52,36 +52,35 @@ import org.springframework.stereotype.Component;
 @Component
 public class T2ARouteBuilder extends RouteBuilder
 {
-    private static final String CONFIG_D2_USER = "dhis2.api.username";
+    public static final String SPLIT_ORG_UNITS_CONFIG = "split.org.units";
 
-    private static final String CONFIG_D2_PWD = "dhis2.api.password";
+    public static final String SPLIT_PERIODS_CONFIG = "split.periods";
 
-    private static final String CONFIG_D2_DV_OU = "org.unit.level";
+    private static final String DHIS2_API_USERNAME_CONFIG = "dhis2.api.username";
 
-    private static final String CONFIG_D2_DV_PE = "periods";
+    private static final String DHIS2_API_PWD_CONFIG = "dhis2.api.password";
 
-    public static final String PROPERTY_PROGRAM_INDICATORS = "pis";
+    private static final String ORG_UNIT_LEVEL_CONFIG = "org.unit.level";
 
-    public static final String PROPERTY_DIMENSIONS = "dimensions";
+    private static final String PERIODS_CONFIG = "periods";
 
-    public static final String PROPERTY_OU_LEVEL = "ou";
+    public static final String PROGRAM_INDICATORS_PROPERTY = "pis";
 
-    public static final String PROPERTY_PERIOD = "pe";
+    public static final String DIMENSIONS_PROPERTY = "dimensions";
 
-    public static final String PROPERTY_ALL_ORG_UNITS = "ous";
+    public static final String OU_LEVEL_PROPERTY = "ou";
+
+    public static final String PERIOD_PROPERTY = "pe";
+
+    public static final String ALL_ORG_UNITS_PROPERTY = "ous";
 
     @Override
     public void configure()
         throws Exception
     {
-        PropertiesComponent properties = (PropertiesComponent) getContext().getPropertiesComponent();
-        String orgUnitLevel = properties.resolveProperty( CONFIG_D2_DV_OU )
-            .orElseThrow( () -> new RuntimeException( CONFIG_D2_DV_OU + " is required" ) );
-        String periods = properties.resolveProperty( CONFIG_D2_DV_PE )
-            .orElseThrow( () -> new RuntimeException( CONFIG_D2_DV_PE + " is required" ) );
         String authHeader = createAuthHeader();
 
-        buildSourceRoute( authHeader, orgUnitLevel, periods );
+        buildSourceRoute( authHeader );
         buildFetchOrgUnitsRoute();
         buildScheduleAnalyticsRoute();
         buildPollAnalyticsStatusRoute();
@@ -89,12 +88,18 @@ public class T2ARouteBuilder extends RouteBuilder
         buildPushAggregatedProgramIndicatorsRoute( authHeader );
     }
 
-    protected void buildSourceRoute( String authHeader, String orgUnitLevel, String periods )
+    protected void buildSourceRoute( String authHeader )
     {
+        PropertiesComponent properties = (PropertiesComponent) getContext().getPropertiesComponent();
+        String orgUnitLevel = properties.resolveProperty( ORG_UNIT_LEVEL_CONFIG )
+            .orElseThrow( () -> new RuntimeException( ORG_UNIT_LEVEL_CONFIG + " is required" ) );
+        String periods = properties.resolveProperty( PERIODS_CONFIG )
+            .orElseThrow( () -> new RuntimeException( PERIODS_CONFIG + " is required" ) );
+
         from( "timer:analytics?repeatCount=1&period=3000000" )
             .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
-            .setProperty( PROPERTY_OU_LEVEL, constant( orgUnitLevel ) )
-            .setProperty( PROPERTY_PERIOD, constant( periods ) ).to( "direct:t2-auth" );
+            .setProperty( OU_LEVEL_PROPERTY, constant( orgUnitLevel ) )
+            .setProperty( PERIOD_PROPERTY, constant( periods ) ).to( "direct:t2-auth" );
     }
 
     protected void buildPollAnalyticsStatusRoute()
@@ -116,7 +121,7 @@ public class T2ARouteBuilder extends RouteBuilder
     {
         from( "direct:t2-auth" ).process( new OrganisationUnitQueryBuilder() )
             .toD( "{{dhis2.api.url}}/organisationUnits" ).unmarshal().json( OrganisationUnits.class )
-            .setProperty( PROPERTY_ALL_ORG_UNITS, simple( "${body}" ) )
+            .setProperty( ALL_ORG_UNITS_PROPERTY, simple( "${body}" ) )
             .removeHeader( Exchange.HTTP_QUERY ) // removing query string, so it
             // won't affect the rest of the
             // route
@@ -143,7 +148,7 @@ public class T2ARouteBuilder extends RouteBuilder
                 "fields=programIndicators[id,name,aggregateExportCategoryOptionCombo,"
                     + "aggregateExportAttributeOptionCombo,attributeValues]" ) )
             .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group}}" ).unmarshal()
-            .json( ProgramIndicatorGroup.class ).setProperty( PROPERTY_PROGRAM_INDICATORS, simple( "${body}" ) )
+            .json( ProgramIndicatorGroup.class ).setProperty( PROGRAM_INDICATORS_PROPERTY, simple( "${body}" ) )
             .removeHeader( Exchange.HTTP_QUERY ).to( "direct:pis" );
     }
 
@@ -163,7 +168,7 @@ public class T2ARouteBuilder extends RouteBuilder
 
         from( "direct:pis" ).split( method( new DimensionSplitter(), "split" ) )
             .executorService( programIndicatorPool ).log(
-                "Processing program indicator '${body.programIndicator.id}' for period '${body.period}' and organisation unit '${body.organisationUnit.id}'" )
+                "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
             .process( new AnalyticsGridQueryBuilder() ).setHeader( "Authorization", constant( authHeader ) )
             .toD( "{{dhis2.api.url}}/analytics" ).process( new AnalyticsGridToDataValueSetQueryBuilder() )
             .setHeader( "Content-Type", constant( MediaType.APPLICATION_JSON_VALUE ) ).log( "Posting DataValueSet" )
@@ -179,9 +184,9 @@ public class T2ARouteBuilder extends RouteBuilder
     {
         PropertiesComponent properties = (PropertiesComponent) getContext().getPropertiesComponent();
 
-        String username = properties.resolveProperty( CONFIG_D2_USER )
+        String username = properties.resolveProperty( DHIS2_API_USERNAME_CONFIG )
             .orElseThrow( () -> new RuntimeException( "Username property is required" ) );
-        String password = properties.resolveProperty( CONFIG_D2_PWD )
+        String password = properties.resolveProperty( DHIS2_API_PWD_CONFIG )
             .orElseThrow( () -> new RuntimeException( "Password property is required" ) );
 
         return "Basic " + Base64.getEncoder().encodeToString( (username + ":" + password).getBytes() );
