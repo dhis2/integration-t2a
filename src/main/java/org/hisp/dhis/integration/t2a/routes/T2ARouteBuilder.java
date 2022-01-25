@@ -51,6 +51,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class T2ARouteBuilder extends RouteBuilder
 {
+    public static final String AGGR_DATA_EXPORT_DE_ID = "aggr.data.export.de.id";
+
     public static final String SPLIT_ORG_UNITS_CONFIG = "split.org.units";
 
     public static final String SPLIT_PERIODS_CONFIG = "split.periods";

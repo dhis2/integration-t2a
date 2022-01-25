@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.integration.t2a.processors;
 
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.AGGR_DATA_EXPORT_DE_ID;
+
 import java.util.*;
 
 import org.apache.camel.Exchange;
@@ -49,6 +51,9 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
     public void process( Exchange exchange )
         throws JsonProcessingException
     {
+        String aggrDataExportDeId = exchange.getContext().getPropertiesComponent()
+            .resolveProperty( "aggr.data.export.de.id" )
+            .orElseThrow( () -> new RuntimeException( AGGR_DATA_EXPORT_DE_ID + " is required" ) );
 
         ArrayList<DataValue> dataValues = new ArrayList<>();
 
@@ -67,7 +72,7 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         exchange.getMessage().setHeader( Exchange.HTTP_METHOD, "POST" );
 
         Optional<AttributeValue> aggregateDataExportDataElementOptional = dimensions.getProgramIndicator()
-            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( "vudyDP7jUy5" ) )
+            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( aggrDataExportDeId ) )
             .findFirst();
 
         if ( aggregateDataExportDataElementOptional.isPresent() )
