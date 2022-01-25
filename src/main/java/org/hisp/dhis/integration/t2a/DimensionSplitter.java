@@ -51,8 +51,9 @@ public class DimensionSplitter
         boolean splitPeriods = Boolean.parseBoolean( propertiesComponent.resolveProperty(
             SPLIT_PERIODS_CONFIG )
             .orElseThrow( () -> new RuntimeException( SPLIT_PERIODS_CONFIG + " is required" ) ) );
+        String periods = propertiesComponent.resolveProperty( PERIODS_CONFIG )
+            .orElseThrow( () -> new RuntimeException( PERIODS_CONFIG + " is required" ) );
 
-        String periods = exchange.getProperty( PERIOD_PROPERTY, String.class );
         OrganisationUnits organisationUnits = exchange.getProperty( ALL_ORG_UNITS_PROPERTY,
             OrganisationUnits.class );
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );

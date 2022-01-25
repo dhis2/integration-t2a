@@ -43,13 +43,14 @@ import org.apache.camel.builder.AdviceWith;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
+import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
+import org.springframework.util.SocketUtils;
 import org.springframework.util.StreamUtils;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -79,6 +80,8 @@ public class T2ARouteBuilderTestCase
 
     private static String orgUnitId;
 
+    private static String t2aHttpEndpointUri;
+
     @Autowired
     private CamelContext camelContext;
 
@@ -107,6 +110,10 @@ public class T2ARouteBuilderTestCase
             String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
         System.setProperty( "split.periods",
             String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
+        System.setProperty( "thread.pool.size",
+            String.valueOf( Runtime.getRuntime().availableProcessors() ) );
+        t2aHttpEndpointUri = String.format( "http://0.0.0.0:%s/dhis2/t2a", SocketUtils.findAvailableTcpPort() );
+        System.setProperty( "http.endpoint.uri", t2aHttpEndpointUri );
 
         RestAssured.baseURI = "http://" + dhis2Container.getHost() + ":" + dhis2Container.getFirstMappedPort();
         RestAssured.requestSpecification = new RequestSpecBuilder().build().contentType( ContentType.JSON ).header(
@@ -130,6 +137,8 @@ public class T2ARouteBuilderTestCase
         System.clearProperty( "dhis2.api.url" );
         System.clearProperty( "split.org.units" );
         System.clearProperty( "split.periods" );
+        System.clearProperty( "thread.pool.size" );
+        System.clearProperty( "http.endpoint.uri" );
     }
 
     private static void updateProgramIndicatorAttributeValue()
@@ -244,6 +253,9 @@ public class T2ARouteBuilderTestCase
         AdviceWith.adviceWith( camelContext, "analyticsRoute", r -> r.weaveAddLast().to( "mock:spy" ) );
 
         camelContext.start();
+
+        given().baseUri( t2aHttpEndpointUri ).when().post().then()
+            .statusCode( 200 );
 
         spyEndpoint.await();
         when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId, orgUnitId ).then()

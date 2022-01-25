@@ -27,8 +27,7 @@
  */
 package org.hisp.dhis.integration.t2a;
 
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_ORG_UNITS_CONFIG;
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_PERIODS_CONFIG;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
@@ -45,7 +44,7 @@ import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.DefaultMessage;
 import org.hisp.dhis.integration.t2a.model.*;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -55,7 +54,7 @@ public class DimensionsSplitterTestCase
     @CsvSource( { "true,true,16", "true,false,8", "false,true,4", "false,false,2" } )
     public void testSplit( String splitPeriods, String splitOrgUnits, int expectedDimensionsSize )
     {
-        CamelContext camelContext = createCamelContext( splitPeriods, splitOrgUnits );
+        CamelContext camelContext = createCamelContext( splitPeriods, splitOrgUnits, "2022Q1,2022Q2,2022Q3,2022Q4" );
 
         OrganisationUnits organisationUnits = new OrganisationUnits();
         organisationUnits
@@ -69,7 +68,7 @@ public class DimensionsSplitterTestCase
 
         DimensionSplitter dimensionSplitter = new DimensionSplitter();
         List<Dimensions> dimensions = dimensionSplitter.split(
-            createExchange( camelContext, organisationUnits, "2022Q1,2022Q2,2022Q3,2022Q4", programIndicatorGroup ) );
+            createExchange( camelContext, organisationUnits, programIndicatorGroup ) );
         assertEquals( expectedDimensionsSize, dimensions.size() );
     }
 
@@ -77,7 +76,7 @@ public class DimensionsSplitterTestCase
     public void testSplitGivenSplitOrgUnitsConfigIsFalse()
     {
         CamelContext camelContext = createCamelContext(
-            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase(), "false" );
+            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase(), "false", "2022Q1" );
 
         OrganisationUnits organisationUnits = new OrganisationUnits();
         organisationUnits
@@ -90,7 +89,7 @@ public class DimensionsSplitterTestCase
 
         DimensionSplitter dimensionSplitter = new DimensionSplitter();
         List<Dimensions> dimensions = dimensionSplitter
-            .split( createExchange( camelContext, organisationUnits, "2022Q1", programIndicatorGroup ) );
+            .split( createExchange( camelContext, organisationUnits, programIndicatorGroup ) );
         assertEquals( 1, dimensions.size() );
         assertEquals( "Bob;Alice", dimensions.get( 0 ).getOrganisationUnitIds() );
         assertEquals( "2022Q1", dimensions.get( 0 ).getPeriods() );
@@ -100,11 +99,11 @@ public class DimensionsSplitterTestCase
     public void testSplitGivenSplitPeriodsConfigIsFalse()
     {
         CamelContext camelContext = createCamelContext( "false",
-            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
+            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase(), "2022Q1,2022Q2,2022Q3,2022Q4" );
 
         OrganisationUnits organisationUnits = new OrganisationUnits();
         organisationUnits
-            .setOrganisationUnits( Arrays.asList( new OrganisationUnit().setId( "Bob" ) ) );
+            .setOrganisationUnits( List.of( new OrganisationUnit().setId( "Bob" ) ) );
 
         ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
         programIndicatorGroup.setProgramIndicators(
@@ -112,17 +111,18 @@ public class DimensionsSplitterTestCase
 
         DimensionSplitter dimensionSplitter = new DimensionSplitter();
         List<Dimensions> dimensions = dimensionSplitter.split(
-            createExchange( camelContext, organisationUnits, "2022Q1,2022Q2,2022Q3,2022Q4", programIndicatorGroup ) );
+            createExchange( camelContext, organisationUnits, programIndicatorGroup ) );
         assertEquals( 1, dimensions.size() );
         assertEquals( "2022Q1;2022Q2;2022Q3;2022Q4", dimensions.get( 0 ).getPeriods() );
         assertEquals( "Bob", dimensions.get( 0 ).getOrganisationUnitIds() );
     }
 
-    private CamelContext createCamelContext( String splitPeriods, String splitOrgUnits )
+    private CamelContext createCamelContext( String splitPeriods, String splitOrgUnits, String periods )
     {
         Properties properties = new Properties();
         properties.setProperty( SPLIT_PERIODS_CONFIG, splitPeriods );
         properties.setProperty( SPLIT_ORG_UNITS_CONFIG, splitOrgUnits );
+        properties.setProperty( PERIODS_CONFIG, periods );
 
         CamelContext camelContext = new SimpleCamelContext();
         camelContext.getPropertiesComponent().setInitialProperties( properties );
@@ -130,14 +130,13 @@ public class DimensionsSplitterTestCase
         return camelContext;
     }
 
-    private Exchange createExchange( CamelContext camelContext, OrganisationUnits organisationUnits, String periods,
+    private Exchange createExchange( CamelContext camelContext, OrganisationUnits organisationUnits,
         ProgramIndicatorGroup programIndicatorGroup )
     {
         Exchange exchange = new DefaultExchange( camelContext );
         Message message = new DefaultMessage( exchange );
         message.setBody( programIndicatorGroup );
 
-        exchange.setProperty( T2ARouteBuilder.PERIOD_PROPERTY, periods );
         exchange.setMessage( message );
         exchange.setProperty( T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY, organisationUnits );
 
