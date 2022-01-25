@@ -27,7 +27,10 @@
  */
 package org.hisp.dhis.integration.t2a;
 
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.*;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.PERIODS_CONFIG;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_ORG_UNITS_CONFIG;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_PERIODS_CONFIG;
 
 import java.util.Arrays;
 import java.util.List;

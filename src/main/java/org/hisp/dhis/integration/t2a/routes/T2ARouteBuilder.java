@@ -51,7 +51,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class T2ARouteBuilder extends RouteBuilder
 {
-    public static final String AGGR_DATA_EXPORT_DE_ID = "aggr.data.export.de.id";
+    public static final String AGGR_DATA_EXPORT_DE_ID_CONFIG = "aggr.data.export.de.id";
 
     public static final String SPLIT_ORG_UNITS_CONFIG = "split.org.units";
 
@@ -131,7 +131,7 @@ public class T2ARouteBuilder extends RouteBuilder
         from( "direct:t2-ous" ).setBody().simple( "${null}" ).setHeader( "CamelHttpMethod", constant( "PUT" ) )
             .log( "Scheduling analytics task" )
             .toD(
-                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}" )
+                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years}}" )
             .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:t2-analytics" );
     }
 

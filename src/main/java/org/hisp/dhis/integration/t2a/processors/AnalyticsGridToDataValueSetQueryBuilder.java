@@ -27,13 +27,19 @@
  */
 package org.hisp.dhis.integration.t2a.processors;
 
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.AGGR_DATA_EXPORT_DE_ID;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.AGGR_DATA_EXPORT_DE_ID_CONFIG;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.hisp.dhis.integration.t2a.model.*;
+import org.hisp.dhis.integration.t2a.model.AnalyticsGrid;
+import org.hisp.dhis.integration.t2a.model.AttributeValue;
+import org.hisp.dhis.integration.t2a.model.DataValue;
+import org.hisp.dhis.integration.t2a.model.DataValues;
+import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 import org.springframework.util.StringUtils;
 
@@ -53,9 +59,9 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
     {
         String aggrDataExportDeId = exchange.getContext().getPropertiesComponent()
             .resolveProperty( "aggr.data.export.de.id" )
-            .orElseThrow( () -> new RuntimeException( AGGR_DATA_EXPORT_DE_ID + " is required" ) );
+            .orElseThrow( () -> new RuntimeException( AGGR_DATA_EXPORT_DE_ID_CONFIG + " is required" ) );
 
-        ArrayList<DataValue> dataValues = new ArrayList<>();
+        List<DataValue> dataValues = new ArrayList<>();
 
         String analyticsGridStr = exchange.getMessage().getBody( String.class );
         AnalyticsGrid analyticsGrid = mapper.readValue( analyticsGridStr, AnalyticsGrid.class );
