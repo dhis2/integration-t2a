@@ -38,24 +38,4 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class ProgramIndicatorGroup
 {
     private List<ProgramIndicator> programIndicators;
-
-    public String programIndicatorAsString()
-    {
-        StringBuilder result = new StringBuilder();
-
-        int x = 0;
-
-        for ( ProgramIndicator pi : programIndicators )
-        {
-            result.append( pi.getId() ).append( ";" );
-
-            // todo remove break
-            if ( x++ == 3 )
-            {
-                break;
-            }
-        }
-
-        return result.deleteCharAt( result.length() - 1 ).toString();
-    }
 }
