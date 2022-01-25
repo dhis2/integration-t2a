@@ -28,11 +28,13 @@
 package org.hisp.dhis.integration.t2a.model;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
 @JsonIgnoreProperties( ignoreUnknown = true )
+@Accessors( chain = true )
 public class OrganisationUnit
 {
     private String id;

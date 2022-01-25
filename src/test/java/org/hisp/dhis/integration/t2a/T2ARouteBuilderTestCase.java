@@ -36,12 +36,14 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.AdviceWith;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -69,7 +71,7 @@ import io.restassured.http.ContentType;
 @CamelSpringBootTest
 @Testcontainers
 @UseAdviceWith
-public class T2ARouteBuilderTest
+public class T2ARouteBuilderTestCase
 {
     public static Network network = Network.newNetwork();
 
@@ -101,6 +103,11 @@ public class T2ARouteBuilderTest
     {
         System.setProperty( "dhis2.api.url",
             String.format( "http://localhost:%s/api", dhis2Container.getFirstMappedPort() ) );
+        System.setProperty( "split.org.units",
+            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
+        System.setProperty( "split.periods",
+            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
+
         RestAssured.baseURI = "http://" + dhis2Container.getHost() + ":" + dhis2Container.getFirstMappedPort();
         RestAssured.requestSpecification = new RequestSpecBuilder().build().contentType( ContentType.JSON ).header(
             HttpHeaders.AUTHORIZATION,
@@ -115,6 +122,14 @@ public class T2ARouteBuilderTest
         addOrgUnitToProgram( orgUnitId );
         updateProgramIndicatorAttributeValue();
         createTrackedEntityInstances();
+    }
+
+    @AfterAll
+    public static void afterAll()
+    {
+        System.clearProperty( "dhis2.api.url" );
+        System.clearProperty( "split.org.units" );
+        System.clearProperty( "split.periods" );
     }
 
     private static void updateProgramIndicatorAttributeValue()

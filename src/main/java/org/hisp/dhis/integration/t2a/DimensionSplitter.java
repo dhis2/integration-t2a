@@ -27,28 +27,61 @@
  */
 package org.hisp.dhis.integration.t2a;
 
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.*;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.spi.PropertiesComponent;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
+import org.hisp.dhis.integration.t2a.model.OrganisationUnit;
 import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
-import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 
 public class DimensionSplitter
 {
     public List<Dimensions> split( Exchange exchange )
     {
-        String periods = exchange.getProperty( T2ARouteBuilder.PROPERTY_PERIOD, String.class );
-        OrganisationUnits organisationUnits = exchange.getProperty( T2ARouteBuilder.PROPERTY_ALL_ORG_UNITS,
+        PropertiesComponent propertiesComponent = exchange.getContext().getPropertiesComponent();
+        boolean splitOrgUnits = Boolean.parseBoolean( propertiesComponent.resolveProperty(
+            SPLIT_ORG_UNITS_CONFIG )
+            .orElseThrow( () -> new RuntimeException( SPLIT_ORG_UNITS_CONFIG + " is required" ) ) );
+        boolean splitPeriods = Boolean.parseBoolean( propertiesComponent.resolveProperty(
+            SPLIT_PERIODS_CONFIG )
+            .orElseThrow( () -> new RuntimeException( SPLIT_PERIODS_CONFIG + " is required" ) ) );
+
+        String periods = exchange.getProperty( PERIOD_PROPERTY, String.class );
+        OrganisationUnits organisationUnits = exchange.getProperty( ALL_ORG_UNITS_PROPERTY,
             OrganisationUnits.class );
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
-        List<Dimensions> dimensions = Arrays.stream( periods.split( "," ) ).flatMap(
-            pe -> organisationUnits.getOrganisationUnits().stream()
-                .flatMap( ou -> programIndicatorGroup.getProgramIndicators().stream()
-                    .map( pi -> new Dimensions( pe, ou, pi ) ) ) )
+        List<String> periodsAsList;
+        if ( splitPeriods )
+        {
+            periodsAsList = Arrays.stream( periods.split( "," ) ).collect( Collectors.toList() );
+        }
+        else
+        {
+            periodsAsList = List.of( String.join( ";", periods.split( "," ) ) );
+        }
+
+        List<String> orgUnitIds;
+        if ( splitOrgUnits )
+        {
+            orgUnitIds = organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
+                .collect( Collectors.toList() );
+        }
+        else
+        {
+            orgUnitIds = Arrays.asList( String.join( ";", organisationUnits.getOrganisationUnits().stream()
+                .map( OrganisationUnit::getId ).collect( Collectors.toList() ) ) );
+        }
+
+        List<Dimensions> dimensions = periodsAsList.stream().flatMap(
+            pe -> orgUnitIds.stream()
+                .flatMap( ouId -> programIndicatorGroup.getProgramIndicators().stream()
+                    .map( pi -> new Dimensions( pe, ouId, pi ) ) ) )
             .collect( Collectors.toList() );
 
         return dimensions;

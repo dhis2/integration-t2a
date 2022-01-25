@@ -30,11 +30,13 @@ package org.hisp.dhis.integration.t2a.model;
 import java.util.List;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
 @JsonIgnoreProperties( ignoreUnknown = true )
+@Accessors( chain = true )
 public class ProgramIndicator
 {
     private String id;

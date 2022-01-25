@@ -38,11 +38,11 @@ public class AnalyticsGridQueryBuilder implements Processor
     {
         Dimensions dimensions = exchange.getMessage().getBody( Dimensions.class );
         String query = "dimension=dx:" + dimensions.getProgramIndicator().getId() +
-            "&dimension=ou:" + dimensions.getOrganisationUnit().getId() +
-            "&dimension=pe:" + dimensions.getPeriod() +
+            "&dimension=ou:" + dimensions.getOrganisationUnitIds() +
+            "&dimension=pe:" + dimensions.getPeriods() +
             "&rows=ou;pe&columns=dx&skipMeta=true";
 
-        exchange.setProperty( T2ARouteBuilder.PROPERTY_DIMENSIONS, dimensions );
+        exchange.setProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY, dimensions );
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
     }
 }
