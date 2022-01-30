@@ -27,11 +27,19 @@
  */
 package org.hisp.dhis.integration.t2a.processors;
 
-import java.util.*;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.AGGR_DATA_EXPORT_DE_ID_CONFIG;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.hisp.dhis.integration.t2a.model.*;
+import org.hisp.dhis.integration.t2a.model.AnalyticsGrid;
+import org.hisp.dhis.integration.t2a.model.AttributeValue;
+import org.hisp.dhis.integration.t2a.model.DataValue;
+import org.hisp.dhis.integration.t2a.model.DataValues;
+import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 import org.springframework.util.StringUtils;
 
@@ -49,8 +57,11 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
     public void process( Exchange exchange )
         throws JsonProcessingException
     {
+        String aggrDataExportDeId = exchange.getContext().getPropertiesComponent()
+            .resolveProperty( "aggr.data.export.de.id" )
+            .orElseThrow( () -> new RuntimeException( AGGR_DATA_EXPORT_DE_ID_CONFIG + " is required" ) );
 
-        ArrayList<DataValue> dataValues = new ArrayList<>();
+        List<DataValue> dataValues = new ArrayList<>();
 
         String analyticsGridStr = exchange.getMessage().getBody( String.class );
         AnalyticsGrid analyticsGrid = mapper.readValue( analyticsGridStr, AnalyticsGrid.class );
@@ -67,7 +78,7 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         exchange.getMessage().setHeader( Exchange.HTTP_METHOD, "POST" );
 
         Optional<AttributeValue> aggregateDataExportDataElementOptional = dimensions.getProgramIndicator()
-            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( "vudyDP7jUy5" ) )
+            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( aggrDataExportDeId ) )
             .findFirst();
 
         if ( aggregateDataExportDataElementOptional.isPresent() )

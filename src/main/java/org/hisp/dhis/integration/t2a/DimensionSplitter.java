@@ -27,7 +27,10 @@
  */
 package org.hisp.dhis.integration.t2a;
 
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.*;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.PERIODS_CONFIG;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_ORG_UNITS_CONFIG;
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_PERIODS_CONFIG;
 
 import java.util.Arrays;
 import java.util.List;
@@ -51,8 +54,9 @@ public class DimensionSplitter
         boolean splitPeriods = Boolean.parseBoolean( propertiesComponent.resolveProperty(
             SPLIT_PERIODS_CONFIG )
             .orElseThrow( () -> new RuntimeException( SPLIT_PERIODS_CONFIG + " is required" ) ) );
+        String periods = propertiesComponent.resolveProperty( PERIODS_CONFIG )
+            .orElseThrow( () -> new RuntimeException( PERIODS_CONFIG + " is required" ) );
 
-        String periods = exchange.getProperty( PERIOD_PROPERTY, String.class );
         OrganisationUnits organisationUnits = exchange.getProperty( ALL_ORG_UNITS_PROPERTY,
             OrganisationUnits.class );
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );

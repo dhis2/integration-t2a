@@ -35,14 +35,13 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
 import org.apache.camel.component.properties.PropertiesComponent;
+import org.apache.http.HttpHeaders;
 import org.hisp.dhis.integration.t2a.DimensionSplitter;
 import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridQueryBuilder;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridToDataValueSetQueryBuilder;
 import org.hisp.dhis.integration.t2a.processors.OrganisationUnitQueryBuilder;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,27 +51,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class T2ARouteBuilder extends RouteBuilder
 {
+    public static final String AGGR_DATA_EXPORT_DE_ID_CONFIG = "aggr.data.export.de.id";
+
     public static final String SPLIT_ORG_UNITS_CONFIG = "split.org.units";
 
     public static final String SPLIT_PERIODS_CONFIG = "split.periods";
 
-    private static final String DHIS2_API_USERNAME_CONFIG = "dhis2.api.username";
+    public static final String ORG_UNIT_LEVEL_CONFIG = "org.unit.level";
 
-    private static final String DHIS2_API_PWD_CONFIG = "dhis2.api.password";
-
-    private static final String ORG_UNIT_LEVEL_CONFIG = "org.unit.level";
-
-    private static final String PERIODS_CONFIG = "periods";
+    public static final String PERIODS_CONFIG = "periods";
 
     public static final String PROGRAM_INDICATORS_PROPERTY = "pis";
 
     public static final String DIMENSIONS_PROPERTY = "dimensions";
 
-    public static final String OU_LEVEL_PROPERTY = "ou";
-
-    public static final String PERIOD_PROPERTY = "pe";
-
     public static final String ALL_ORG_UNITS_PROPERTY = "ous";
+
+    private static final String DHIS2_API_USERNAME_CONFIG = "dhis2.api.username";
+
+    private static final String DHIS2_API_PWD_CONFIG = "dhis2.api.password";
 
     @Override
     public void configure()
@@ -90,26 +87,24 @@ public class T2ARouteBuilder extends RouteBuilder
 
     protected void buildSourceRoute( String authHeader )
     {
-        PropertiesComponent properties = (PropertiesComponent) getContext().getPropertiesComponent();
-        String orgUnitLevel = properties.resolveProperty( ORG_UNIT_LEVEL_CONFIG )
-            .orElseThrow( () -> new RuntimeException( ORG_UNIT_LEVEL_CONFIG + " is required" ) );
-        String periods = properties.resolveProperty( PERIODS_CONFIG )
-            .orElseThrow( () -> new RuntimeException( PERIODS_CONFIG + " is required" ) );
-
-        from( "timer:analytics?repeatCount=1&period=3000000" )
+        from( "jetty:{{http.endpoint.uri}}?exchangePattern=InOnly" )
+            .removeHeaders( "*" )
             .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
-            .setProperty( OU_LEVEL_PROPERTY, constant( orgUnitLevel ) )
-            .setProperty( PERIOD_PROPERTY, constant( periods ) ).to( "direct:t2-auth" );
+            .to( "direct:t2-auth" );
+
+        from( "quartz://t2a?cron={{schedule.expression}}" )
+            .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
+            .to( "direct:t2-auth" );
     }
 
     protected void buildPollAnalyticsStatusRoute()
     {
         from( "direct:t2-analytics" ).routeId( "analyticsRoute" ).setHeader( "CamelHttpMethod", constant( "GET" ) )
-            .log( "Analytics started with task ID : ${exchangeProperty.taskId}" )
-            .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${exchangeProperty.taskId}" )
+            .log( "Analytics started with task ID : ${header.taskId}" )
+            .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
             .setProperty( "status", jsonpath( "$[0]" ) )
             .loopDoWhile( simple( "${exchangeProperty.status[completed]} == false" ) )
-            .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${exchangeProperty.taskId}" )
+            .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
             .setProperty( "status", jsonpath( "$[0]" ) ).process( exchange -> Thread.sleep( 30000 ) ).end()
             .log( "Analytics Task Completed" ).choice()
             .when( simple( "${exchangeProperty.status[level]} == 'ERROR'" ) )
@@ -136,9 +131,8 @@ public class T2ARouteBuilder extends RouteBuilder
         from( "direct:t2-ous" ).setBody().simple( "${null}" ).setHeader( "CamelHttpMethod", constant( "PUT" ) )
             .log( "Scheduling analytics task" )
             .toD(
-                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${in.header.skipAggregate}&skipEvents=${in.header.skipEvents}" )
-            // todo using property instead of headers. Ask Bob!
-            .setProperty( "taskId", jsonpath( "$.response.id" ) ).to( "direct:t2-analytics" );
+                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years}}" )
+            .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:t2-analytics" );
     }
 
     protected void buildFetchProgramIndicatorsRoute()
@@ -147,7 +141,7 @@ public class T2ARouteBuilder extends RouteBuilder
             .setHeader( Exchange.HTTP_QUERY, constant(
                 "fields=programIndicators[id,name,aggregateExportCategoryOptionCombo,"
                     + "aggregateExportAttributeOptionCombo,attributeValues]" ) )
-            .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group}}" ).unmarshal()
+            .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}}" ).unmarshal()
             .json( ProgramIndicatorGroup.class ).setProperty( PROGRAM_INDICATORS_PROPERTY, simple( "${body}" ) )
             .removeHeader( Exchange.HTTP_QUERY ).to( "direct:pis" );
     }
@@ -171,7 +165,7 @@ public class T2ARouteBuilder extends RouteBuilder
                 "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
             .process( new AnalyticsGridQueryBuilder() ).setHeader( "Authorization", constant( authHeader ) )
             .toD( "{{dhis2.api.url}}/analytics" ).process( new AnalyticsGridToDataValueSetQueryBuilder() )
-            .setHeader( "Content-Type", constant( MediaType.APPLICATION_JSON_VALUE ) ).log( "Posting DataValueSet" )
+            .setHeader( "Content-Type", constant( "application/json" ) ).log( "Posting DataValueSet..." )
             .toD( "{{dhis2.api.url}}/dataValueSets" )
             .end()
             .setHeader( "skipAggregate", constant( "false" ) )

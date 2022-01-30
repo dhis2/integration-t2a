@@ -27,18 +27,21 @@
  */
 package org.hisp.dhis.integration.t2a.processors;
 
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ORG_UNIT_LEVEL_CONFIG;
+
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
+import org.apache.camel.component.properties.PropertiesComponent;
 
 public class OrganisationUnitQueryBuilder implements Processor
 {
     @Override
     public void process( Exchange exchange )
-        throws Exception
     {
-        String ou = exchange.getProperty( "ou", String.class );
-
-        String query = "paging=false&fields=id&filter=level:eq:" + ou;
+        PropertiesComponent propertiesComponent = (PropertiesComponent) exchange.getContext().getPropertiesComponent();
+        String orgUnitLevel = propertiesComponent.resolveProperty( ORG_UNIT_LEVEL_CONFIG )
+            .orElseThrow( () -> new RuntimeException( ORG_UNIT_LEVEL_CONFIG + " is required" ) );
+        String query = "paging=false&fields=id&filter=level:eq:" + orgUnitLevel;
 
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
     }
