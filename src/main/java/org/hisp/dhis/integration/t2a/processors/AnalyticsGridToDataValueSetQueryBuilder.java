@@ -27,8 +27,6 @@
  */
 package org.hisp.dhis.integration.t2a.processors;
 
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.AGGR_DATA_EXPORT_DE_ID_CONFIG;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,30 +39,32 @@ import org.hisp.dhis.integration.t2a.model.DataValue;
 import org.hisp.dhis.integration.t2a.model.DataValues;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+@Component
 public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
 {
     /**
      * Using Jackson Mapper is a temporary workaround since
      * exchange.getMessage().getBody( AnalyticsGrid.class ); doesn't work.
      */
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    @Value( "${aggr.data.export.de.id}" )
+    private String aggrDataExportDeId;
 
     public void process( Exchange exchange )
         throws JsonProcessingException
     {
-        String aggrDataExportDeId = exchange.getContext().getPropertiesComponent()
-            .resolveProperty( "aggr.data.export.de.id" )
-            .orElseThrow( () -> new RuntimeException( AGGR_DATA_EXPORT_DE_ID_CONFIG + " is required" ) );
-
         List<DataValue> dataValues = new ArrayList<>();
 
         String analyticsGridStr = exchange.getMessage().getBody( String.class );
-        AnalyticsGrid analyticsGrid = mapper.readValue( analyticsGridStr, AnalyticsGrid.class );
+        AnalyticsGrid analyticsGrid = OBJECT_MAPPER.readValue( analyticsGridStr, AnalyticsGrid.class );
 
         Dimensions dimensions = exchange.getProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY,
             Dimensions.class );
@@ -105,6 +105,6 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
 
         // todo just setting the POJO doesn't work. Should investigate
         // leisurely.
-        exchange.getMessage().setBody( mapper.writeValueAsString( finalDataValues ) );
+        exchange.getMessage().setBody( OBJECT_MAPPER.writeValueAsString( finalDataValues ) );
     }
 }

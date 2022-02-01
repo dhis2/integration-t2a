@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
 import org.apache.camel.component.properties.PropertiesComponent;
@@ -41,7 +42,8 @@ import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridQueryBuilder;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridToDataValueSetQueryBuilder;
-import org.hisp.dhis.integration.t2a.processors.OrganisationUnitQueryBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -51,25 +53,23 @@ import org.springframework.stereotype.Component;
 @Component
 public class T2ARouteBuilder extends RouteBuilder
 {
-    public static final String AGGR_DATA_EXPORT_DE_ID_CONFIG = "aggr.data.export.de.id";
-
-    public static final String SPLIT_ORG_UNITS_CONFIG = "split.org.units";
-
-    public static final String SPLIT_PERIODS_CONFIG = "split.periods";
-
-    public static final String ORG_UNIT_LEVEL_CONFIG = "org.unit.level";
-
-    public static final String PERIODS_CONFIG = "periods";
-
     public static final String PROGRAM_INDICATORS_PROPERTY = "pis";
 
     public static final String DIMENSIONS_PROPERTY = "dimensions";
 
     public static final String ALL_ORG_UNITS_PROPERTY = "ous";
 
-    private static final String DHIS2_API_USERNAME_CONFIG = "dhis2.api.username";
+    @Value( "${dhis2.api.username}" )
+    private String username;
 
-    private static final String DHIS2_API_PWD_CONFIG = "dhis2.api.password";
+    @Value( "${dhis2.api.password}" )
+    private String password;
+
+    @Autowired
+    private DimensionSplitter dimensionSplitter;
+
+    @Autowired
+    private AnalyticsGridToDataValueSetQueryBuilder analyticsGridToDataValueSetQueryBuilder;
 
     @Override
     public void configure()
@@ -87,63 +87,103 @@ public class T2ARouteBuilder extends RouteBuilder
 
     protected void buildSourceRoute( String authHeader )
     {
-        from( "jetty:{{http.endpoint.uri}}?exchangePattern=InOnly" )
+        from( "jetty:{{http.endpoint.uri}}" )
             .removeHeaders( "*" )
             .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
-            .to( "direct:t2-auth" );
+            .to( "seda:t2a?waitForTaskToComplete=never" );
 
         from( "quartz://t2a?cron={{schedule.expression}}" )
             .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
-            .to( "direct:t2-auth" );
+            .to( "seda:t2a" );
     }
 
     protected void buildPollAnalyticsStatusRoute()
     {
-        from( "direct:t2-analytics" ).routeId( "analyticsRoute" ).setHeader( "CamelHttpMethod", constant( "GET" ) )
-            .log( "Analytics started with task ID : ${header.taskId}" )
+        from( "direct:poll-analytics" ).routeId( "pollAnalyticsRoute" ).streamCaching( "true" )
+            .setHeader( "CamelHttpMethod", constant( "GET" ) )
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Analytics started with task ID ${header.taskId}" )
             .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
             .setProperty( "status", jsonpath( "$[0]" ) )
             .loopDoWhile( simple( "${exchangeProperty.status[completed]} == false" ) )
             .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
-            .setProperty( "status", jsonpath( "$[0]" ) ).process( exchange -> Thread.sleep( 30000 ) ).end()
-            .log( "Analytics Task Completed" ).choice()
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
+            .setProperty( "status", jsonpath( "$[0]" ) ).delay( 30000 ).end()
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Analytics task completed" )
+            .choice()
             .when( simple( "${exchangeProperty.status[level]} == 'ERROR'" ) )
-            .throwException( RuntimeException.class, "Analytics Failed : ${body}" ).end()
-            .log( "Analytics Status : ${header.status}" );
+            .throwException( RuntimeException.class, "Analytics failed => ${body}" ).end()
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Analytics status: ${header.status}" );
     }
 
     protected void buildFetchOrgUnitsRoute()
     {
-        from( "direct:t2-auth" ).process( new OrganisationUnitQueryBuilder() )
-            .toD( "{{dhis2.api.url}}/organisationUnits" ).unmarshal().json( OrganisationUnits.class )
+        from( "seda:t2a" ).setProperty( "startTime", simple( "${bean:java.lang.System?method=currentTimeMillis}" ) )
+            .streamCaching( "true" )
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Fetching organisation units..." )
+            .setHeader( Exchange.HTTP_QUERY, simple( "paging=false&fields=id&filter=level:eq:{{org.unit.level}}" ) )
+            .toD( "{{dhis2.api.url}}/organisationUnits" )
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP GET {{dhis2.api.url}}/organisationUnits => ${body}" )
+            .unmarshal().json( OrganisationUnits.class )
             .setProperty( ALL_ORG_UNITS_PROPERTY, simple( "${body}" ) )
             .removeHeader( Exchange.HTTP_QUERY ) // removing query string, so it
             // won't affect the rest of the
             // route
             .setHeader( "skipAggregate", constant( "true" ) )
             .setHeader( "skipEvents", constant( "false" ) )
-            .choice().when( simple( "{{run.event.analytics}}" ) ).to( "direct:t2-ous" ).end()
-            .to( "direct:analytics-done" );
+            .choice().when( simple( "{{run.event.analytics}}" ) ).to( "direct:run-analytics" ).end()
+            .to( "direct:collect" )
+            .process( e -> e.getIn()
+                .setBody( (System.currentTimeMillis() - e.getProperty( "startTime", Long.class )) / 1000 ) )
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Aggregated program indicators in ${body} seconds" );
     }
 
     protected void buildScheduleAnalyticsRoute()
     {
-        from( "direct:t2-ous" ).setBody().simple( "${null}" ).setHeader( "CamelHttpMethod", constant( "PUT" ) )
-            .log( "Scheduling analytics task" )
+        from( "direct:run-analytics" ).setBody().simple( "${null}" ).setHeader( "CamelHttpMethod", constant( "PUT" ) )
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Scheduling analytics task..." )
             .toD(
                 "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years}}" )
-            .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:t2-analytics" );
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP PUT {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years}} => ${body}" )
+            .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:poll-analytics" );
     }
 
     protected void buildFetchProgramIndicatorsRoute()
     {
-        from( "direct:analytics-done" ).setHeader( Exchange.HTTP_METHOD, constant( "GET" ) )
+        from( "direct:collect" ).streamCaching( "true" ).setHeader( Exchange.HTTP_METHOD, constant( "GET" ) )
             .setHeader( Exchange.HTTP_QUERY, constant(
                 "fields=programIndicators[id,name,aggregateExportCategoryOptionCombo,"
                     + "aggregateExportAttributeOptionCombo,attributeValues]" ) )
-            .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}}" ).unmarshal()
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "Fetching program indicators..." )
+            .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}}" )
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP GET {{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}} => ${body}" )
+            .unmarshal()
             .json( ProgramIndicatorGroup.class ).setProperty( PROGRAM_INDICATORS_PROPERTY, simple( "${body}" ) )
-            .removeHeader( Exchange.HTTP_QUERY ).to( "direct:pis" );
+            .removeHeader( Exchange.HTTP_QUERY ).to( "direct:push" );
     }
 
     protected void buildPushAggregatedProgramIndicatorsRoute( String authHeader )
@@ -160,29 +200,29 @@ public class T2ARouteBuilder extends RouteBuilder
         ThreadPoolBuilder builder = new ThreadPoolBuilder( getContext() );
         ExecutorService programIndicatorPool = builder.poolSize( poolSize ).maxPoolSize( poolSize ).build();
 
-        from( "direct:pis" ).split( method( new DimensionSplitter(), "split" ) )
-            .executorService( programIndicatorPool ).log(
+        from( "direct:push" ).streamCaching( "true" ).split( method( dimensionSplitter, "split" ) )
+            .executorService( programIndicatorPool )
+            .log( LoggingLevel.INFO,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
                 "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
             .process( new AnalyticsGridQueryBuilder() ).setHeader( "Authorization", constant( authHeader ) )
-            .toD( "{{dhis2.api.url}}/analytics" ).process( new AnalyticsGridToDataValueSetQueryBuilder() )
-            .setHeader( "Content-Type", constant( "application/json" ) ).log( "Posting DataValueSet..." )
+            .toD( "{{dhis2.api.url}}/analytics" ).process( analyticsGridToDataValueSetQueryBuilder )
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP GET {{dhis2.api.url}}/analytics => ${body}" )
+            .setHeader( "Content-Type", constant( "application/json" ) )
             .toD( "{{dhis2.api.url}}/dataValueSets" )
+            .log( LoggingLevel.DEBUG,
+                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+                "HTTP POST {{dhis2.api.url}}/dataValueSets => ${body}" )
             .end()
             .setHeader( "skipAggregate", constant( "false" ) )
             .setHeader( "skipEvents", constant( "true" ) )
-            .to( "direct:t2-ous" )
-            .log( "Aggregated program indicators" );
+            .to( "direct:run-analytics" );
     }
 
     protected String createAuthHeader()
     {
-        PropertiesComponent properties = (PropertiesComponent) getContext().getPropertiesComponent();
-
-        String username = properties.resolveProperty( DHIS2_API_USERNAME_CONFIG )
-            .orElseThrow( () -> new RuntimeException( "Username property is required" ) );
-        String password = properties.resolveProperty( DHIS2_API_PWD_CONFIG )
-            .orElseThrow( () -> new RuntimeException( "Password property is required" ) );
-
         return "Basic " + Base64.getEncoder().encodeToString( (username + ":" + password).getBytes() );
     }
 }

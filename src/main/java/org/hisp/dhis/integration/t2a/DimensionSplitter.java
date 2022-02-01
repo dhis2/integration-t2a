@@ -28,35 +28,34 @@
 package org.hisp.dhis.integration.t2a;
 
 import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.PERIODS_CONFIG;
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_ORG_UNITS_CONFIG;
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.SPLIT_PERIODS_CONFIG;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.camel.Exchange;
-import org.apache.camel.spi.PropertiesComponent;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.model.OrganisationUnit;
 import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
+@Component
 public class DimensionSplitter
 {
+    @Value( "${org.unit.batch.size}" )
+    private int orgUnitBatchSize;
+
+    @Value( "${split.periods}" )
+    private boolean splitPeriods;
+
+    @Value( "${periods}" )
+    private String periods;
+
     public List<Dimensions> split( Exchange exchange )
     {
-        PropertiesComponent propertiesComponent = exchange.getContext().getPropertiesComponent();
-        boolean splitOrgUnits = Boolean.parseBoolean( propertiesComponent.resolveProperty(
-            SPLIT_ORG_UNITS_CONFIG )
-            .orElseThrow( () -> new RuntimeException( SPLIT_ORG_UNITS_CONFIG + " is required" ) ) );
-        boolean splitPeriods = Boolean.parseBoolean( propertiesComponent.resolveProperty(
-            SPLIT_PERIODS_CONFIG )
-            .orElseThrow( () -> new RuntimeException( SPLIT_PERIODS_CONFIG + " is required" ) ) );
-        String periods = propertiesComponent.resolveProperty( PERIODS_CONFIG )
-            .orElseThrow( () -> new RuntimeException( PERIODS_CONFIG + " is required" ) );
-
         OrganisationUnits organisationUnits = exchange.getProperty( ALL_ORG_UNITS_PROPERTY,
             OrganisationUnits.class );
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
@@ -70,24 +69,49 @@ public class DimensionSplitter
             periodsAsList = List.of( String.join( ";", periods.split( "," ) ) );
         }
 
-        List<String> orgUnitIds;
-        if ( splitOrgUnits )
-        {
-            orgUnitIds = organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
-                .collect( Collectors.toList() );
-        }
-        else
-        {
-            orgUnitIds = Arrays.asList( String.join( ";", organisationUnits.getOrganisationUnits().stream()
-                .map( OrganisationUnit::getId ).collect( Collectors.toList() ) ) );
-        }
+        List<List<String>> orgUnitBatches = IntStream.iterate( 0,
+            i -> i < organisationUnits.getOrganisationUnits().size(), i -> i + orgUnitBatchSize )
+            .mapToObj( i -> organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
+                .collect( Collectors.toList() )
+                .subList( i, Math.min( i + orgUnitBatchSize, organisationUnits.getOrganisationUnits().size() ) ) )
+            .collect( Collectors.toList() );
 
         List<Dimensions> dimensions = periodsAsList.stream().flatMap(
-            pe -> orgUnitIds.stream()
-                .flatMap( ouId -> programIndicatorGroup.getProgramIndicators().stream()
-                    .map( pi -> new Dimensions( pe, ouId, pi ) ) ) )
+            pe -> orgUnitBatches.stream()
+                .flatMap( b -> programIndicatorGroup.getProgramIndicators().stream()
+                    .map( pi -> new Dimensions( pe, String.join( ";", b ), pi ) ) ) )
             .collect( Collectors.toList() );
 
         return dimensions;
+    }
+
+    public int getOrgUnitBatchSize()
+    {
+        return orgUnitBatchSize;
+    }
+
+    public void setOrgUnitBatchSize( int orgUnitBatchSize )
+    {
+        this.orgUnitBatchSize = orgUnitBatchSize;
+    }
+
+    public boolean isSplitPeriods()
+    {
+        return splitPeriods;
+    }
+
+    public void setSplitPeriods( boolean splitPeriods )
+    {
+        this.splitPeriods = splitPeriods;
+    }
+
+    public String getPeriods()
+    {
+        return periods;
+    }
+
+    public void setPeriods( String periods )
+    {
+        this.periods = periods;
     }
 }
