@@ -30,9 +30,10 @@ package org.hisp.dhis.integration.t2a;
 import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.camel.Exchange;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
@@ -69,20 +70,18 @@ public class DimensionSplitter
             periodsAsList = List.of( String.join( ";", periods.split( "," ) ) );
         }
 
-        List<List<String>> orgUnitBatches = IntStream.iterate( 0,
-            i -> i < organisationUnits.getOrganisationUnits().size(), i -> i + orgUnitBatchSize )
-            .mapToObj( i -> organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
-                .collect( Collectors.toList() )
-                .subList( i, Math.min( i + orgUnitBatchSize, organisationUnits.getOrganisationUnits().size() ) ) )
-            .collect( Collectors.toList() );
+        AtomicInteger batchNo = new AtomicInteger();
+        Collection<String> orgUnitBatches = organisationUnits.getOrganisationUnits().stream()
+            .map( OrganisationUnit::getId )
+            .collect( Collectors.groupingBy(
+                g -> batchNo.getAndIncrement() / orgUnitBatchSize, Collectors.joining( ";" ) ) )
+            .values();
 
-        List<Dimensions> dimensions = periodsAsList.stream().flatMap(
+        return periodsAsList.stream().flatMap(
             pe -> orgUnitBatches.stream()
                 .flatMap( b -> programIndicatorGroup.getProgramIndicators().stream()
-                    .map( pi -> new Dimensions( pe, String.join( ";", b ), pi ) ) ) )
+                    .map( pi -> new Dimensions( pe, b, pi ) ) ) )
             .collect( Collectors.toList() );
-
-        return dimensions;
     }
 
     public int getOrgUnitBatchSize()
