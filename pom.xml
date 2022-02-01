@@ -4,12 +4,12 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.hisp.dhis.integration</groupId>
+    <groupId>org.hisp.dhis2.integration</groupId>
     <artifactId>t2a</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.0</version>
+    <version>1.0.0-RC1</version>
 
-    <name>DHIS2 Tracker to Aggregate</name>
+    <name>DHIS2 Tracker-to-Aggregate</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
