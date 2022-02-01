@@ -4,7 +4,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.dhis2.integration</groupId>
+    <groupId>org.hisp.dhis2.integration</groupId>
     <artifactId>t2a</artifactId>
     <packaging>jar</packaging>
     <version>1.0.0-RC1</version>
