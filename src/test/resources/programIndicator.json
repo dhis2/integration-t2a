@@ -1,9 +1,9 @@
 {
-  "name": "Infants with visit under 1 year",
-  "shortName": "Infants with visit under 1 year",
+  "name": "EIR - Births (home)",
+  "shortName": "Births (home)",
   "attributeValues": [
     {
-      "value": "InfantsWithVisitUnder1Year",
+      "value": "BirthsHome",
       "attribute": {
         "id": "vudyDP7jUy5",
         "name": "Data element for aggregate data export"

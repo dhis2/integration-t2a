@@ -9,6 +9,7 @@
         <appender-ref ref="STDOUT"/>
     </root>
 
+    <logger name="org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" level="DEBUG"/>
     <logger name="org.testcontainers" level="INFO"/>
     <logger name="com.github.dockerjava" level="WARN"/>
 </configuration>
