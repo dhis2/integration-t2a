@@ -13,7 +13,7 @@
 ### Usage Example
 
 ```shell
-java -jar dhis2-t2a.jar -Ddhis2.api.url=https://play.dhis2.org/2.37.2/api -Ddhis2.api.username=admin -Ddhis2.api.password=district -Dorg.unit.level=3 -Dperiods=2022Q1,2022Q2,2022Q3,2022Q4
+java -jar dhis2-t2a.jar -Ddhis2.api.url=https://play.dhis2.org/2.37.2/api -Ddhis2.api.username=admin -Ddhis2.api.password=district -Dorg.unit.level=3 -Dperiods=2022Q1,2022Q2,2022Q3,2022Q4 -Dpi.group.id=Lesc1szBJGe
 ```
 
 ### Config
@@ -38,4 +38,4 @@ By order of precedence, a config property can be specified:
 | `thread.pool.size`       | Maximum no. of threads for processing analytics data. More threads might reduce execution time when `split.org.units` or `split.periods` is `true` but also lead to more load on the DHIS2 server.                                                                                       | `1`                             | `3`                                 |
 | `org.unit.batch.size`    | Number of organisation units to process at once when retrieving analytics. It is computationally more expensive for the DHIS2 server to process organisation units in larger batches.                                                                                                    | `1`                             | `10`                                |
 | `schedule.expression`    | Cron expression for triggering the execution of the application. By default, the application execution is kicked off at midnight every day.                                                                                                                                              | `0 0 0 * * ?`                   | `0 0 12 * * ?`                      |
-| `split.periods`          | Whether to process periods individually when retrieving analytics. It is more computationally expensive for the DHIS2 server to process periods in batches (i.e., `split.periods=false`).                                                                                                | `true`                          | `false`                             |
+| `split.periods`          | Whether to process periods individually when retrieving analytics. It is computationally more expensive for the DHIS2 server to process periods in batches (i.e., `split.periods=false`).                                                                                                | `true`                          | `false`                             |
