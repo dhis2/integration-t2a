@@ -30,7 +30,6 @@ package org.hisp.dhis.integration.t2a;
 import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -72,14 +71,11 @@ public class DimensionSplitter
 
         List<String> ouIds = organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
             .collect( Collectors.toList() );
-        Collection<String> orgUnitBatches = IntStream.iterate( 0, i -> i < ouIds.size(), i -> i + orgUnitBatchSize )
+        return IntStream.iterate( 0, i -> i < ouIds.size(), i -> i + orgUnitBatchSize )
             .mapToObj( i -> String.join( ";", ouIds.subList( i, Math.min( i + orgUnitBatchSize, ouIds.size() ) ) ) )
-            .collect( Collectors.toList() );
-
-        return periodsAsList.stream().flatMap(
-            pe -> orgUnitBatches.stream()
-                .flatMap( b -> programIndicatorGroup.getProgramIndicators().stream()
-                    .map( pi -> new Dimensions( pe, b, pi ) ) ) )
+            .flatMap( ous -> periodsAsList.stream().flatMap(
+                per -> programIndicatorGroup.getProgramIndicators().stream()
+                    .map( pi -> new Dimensions( per, ous, pi ) ) ) )
             .collect( Collectors.toList() );
     }
 
