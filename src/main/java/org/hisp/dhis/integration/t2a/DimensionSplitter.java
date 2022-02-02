@@ -32,8 +32,8 @@ import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.camel.Exchange;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
@@ -70,12 +70,11 @@ public class DimensionSplitter
             periodsAsList = List.of( String.join( ";", periods.split( "," ) ) );
         }
 
-        AtomicInteger batchNo = new AtomicInteger();
-        Collection<String> orgUnitBatches = organisationUnits.getOrganisationUnits().stream()
-            .map( OrganisationUnit::getId )
-            .collect( Collectors.groupingBy(
-                g -> batchNo.getAndIncrement() / orgUnitBatchSize, Collectors.joining( ";" ) ) )
-            .values();
+        List<String> ouIds = organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
+            .collect( Collectors.toList() );
+        Collection<String> orgUnitBatches = IntStream.iterate( 0, i -> i < ouIds.size(), i -> i + orgUnitBatchSize )
+            .mapToObj( i -> String.join( ";", ouIds.subList( i, Math.min( i + 3, ouIds.size() ) ) ) )
+            .collect( Collectors.toList() );
 
         return periodsAsList.stream().flatMap(
             pe -> orgUnitBatches.stream()
