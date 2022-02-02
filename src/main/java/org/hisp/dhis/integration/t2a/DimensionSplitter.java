@@ -73,7 +73,7 @@ public class DimensionSplitter
         List<String> ouIds = organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
             .collect( Collectors.toList() );
         Collection<String> orgUnitBatches = IntStream.iterate( 0, i -> i < ouIds.size(), i -> i + orgUnitBatchSize )
-            .mapToObj( i -> String.join( ";", ouIds.subList( i, Math.min( i + 3, ouIds.size() ) ) ) )
+            .mapToObj( i -> String.join( ";", ouIds.subList( i, Math.min( i + orgUnitBatchSize, ouIds.size() ) ) ) )
             .collect( Collectors.toList() );
 
         return periodsAsList.stream().flatMap(
