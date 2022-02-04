@@ -28,14 +28,12 @@
 package org.hisp.dhis.integration.t2a.routes;
 
 import java.util.Base64;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
-import org.apache.camel.component.properties.PropertiesComponent;
 import org.apache.http.HttpHeaders;
 import org.hisp.dhis.integration.t2a.DimensionSplitter;
 import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
@@ -64,6 +62,9 @@ public class T2ARouteBuilder extends RouteBuilder
 
     @Value( "${dhis2.api.password}" )
     private String password;
+
+    @Value( "${thread.pool.size:1}" )
+    private int threadPoolSize;
 
     @Autowired
     private DimensionSplitter dimensionSplitter;
@@ -189,16 +190,8 @@ public class T2ARouteBuilder extends RouteBuilder
     protected void buildPushAggregatedProgramIndicatorsRoute( String authHeader )
         throws Exception
     {
-        PropertiesComponent propertiesComponent = (PropertiesComponent) getContext().getPropertiesComponent();
-        int poolSize = Runtime.getRuntime().availableProcessors();
-        Optional<String> poolSizeProperty = propertiesComponent.resolveProperty( "thread.pool.size" );
-        if ( poolSizeProperty.isPresent() )
-        {
-            poolSize = Integer.parseInt( poolSizeProperty.get() );
-        }
-
         ThreadPoolBuilder builder = new ThreadPoolBuilder( getContext() );
-        ExecutorService programIndicatorPool = builder.poolSize( poolSize ).maxPoolSize( poolSize ).build();
+        ExecutorService programIndicatorPool = builder.poolSize( threadPoolSize ).maxPoolSize( threadPoolSize ).build();
 
         from( "direct:push" ).streamCaching( "true" ).split( method( dimensionSplitter, "split" ) )
             .executorService( programIndicatorPool )
