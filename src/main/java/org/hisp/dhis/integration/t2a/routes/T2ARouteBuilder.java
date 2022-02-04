@@ -88,12 +88,12 @@ public class T2ARouteBuilder extends RouteBuilder
 
     protected void buildSourceRoute( String authHeader )
     {
-        from( "jetty:{{http.endpoint.uri}}" )
+        from( "jetty:{{http.endpoint.uri:http://localhost:8081/dhis2/t2a}}" )
             .removeHeaders( "*" )
             .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
             .to( "seda:t2a?waitForTaskToComplete=never" );
 
-        from( "quartz://t2a?cron={{schedule.expression}}" )
+        from( "quartz://t2a?cron={{schedule.expression:0 0 0 * * ?}}" )
             .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
             .to( "seda:t2a" );
     }
@@ -146,7 +146,7 @@ public class T2ARouteBuilder extends RouteBuilder
             // route
             .setHeader( "skipAggregate", constant( "true" ) )
             .setHeader( "skipEvents", constant( "false" ) )
-            .choice().when( simple( "{{run.event.analytics}}" ) ).to( "direct:run-analytics" ).end()
+            .choice().when( simple( "{{run.event.analytics:true}}" ) ).to( "direct:run-analytics" ).end()
             .to( "direct:collect" )
             .process( e -> e.getIn()
                 .setBody( (System.currentTimeMillis() - e.getProperty( "startTime", Long.class )) / 1000 ) )
@@ -162,10 +162,10 @@ public class T2ARouteBuilder extends RouteBuilder
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
                 "Scheduling analytics task..." )
             .toD(
-                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years}}" )
+                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}}" )
             .log( LoggingLevel.DEBUG,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "HTTP PUT {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years}} => ${body}" )
+                "HTTP PUT {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}} => ${body}" )
             .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:poll-analytics" );
     }
 

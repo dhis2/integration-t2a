@@ -102,7 +102,7 @@ public class T2ARouteBuilderTestCase
     @Container
     public static GenericContainer<?> dhis2Container = new GenericContainer<>( "dhis2/core:2.36.7" )
         .dependsOn( postgreSQLContainer )
-        .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
+        .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_ONLY )
         .withNetwork( network ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
         .withEnv( "WAIT_FOR_DB_CONTAINER", "db" + ":" + 5432 + " -t 0" );
 

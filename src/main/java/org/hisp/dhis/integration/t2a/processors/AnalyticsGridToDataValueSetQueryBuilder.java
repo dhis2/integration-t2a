@@ -55,7 +55,7 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
      */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Value( "${aggr.data.export.de.id}" )
+    @Value( "${aggr.data.export.de.id:vudyDP7jUy5}" )
     private String aggrDataExportDeId;
 
     public void process( Exchange exchange )
