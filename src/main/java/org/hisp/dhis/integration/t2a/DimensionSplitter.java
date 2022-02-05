@@ -45,10 +45,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class DimensionSplitter
 {
-    @Value( "${org.unit.batch.size}" )
+    @Value( "${org.unit.batch.size:1}" )
     private int orgUnitBatchSize;
 
-    @Value( "${split.periods}" )
+    @Value( "${split.periods:true}" )
     private boolean splitPeriods;
 
     @Value( "${periods}" )

@@ -34,7 +34,6 @@ import static org.hamcrest.Matchers.equalTo;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.Charset;
-import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +44,6 @@ import org.apache.camel.builder.AdviceWith;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
-import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,7 +76,7 @@ import io.restassured.path.json.JsonPath;
 @UseAdviceWith
 public class T2ARouteBuilderTestCase
 {
-    public static Network network = Network.newNetwork();
+    public static final Network NETWORK = Network.newNetwork();
 
     private static String dataElementId;
 
@@ -92,18 +90,18 @@ public class T2ARouteBuilderTestCase
     private MockEndpoint spyEndpoint;
 
     @Container
-    public static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>(
+    public static final PostgreSQLContainer<?> POSTGRESQL_CONTAINER = new PostgreSQLContainer<>(
         DockerImageName.parse( "postgis/postgis:12-3.2-alpine" ).asCompatibleSubstituteFor( "postgres" ) )
             .withDatabaseName( "dhis2" )
             .withNetworkAliases( "db" )
             .withUsername( "dhis" )
-            .withPassword( "dhis" ).withNetwork( network );
+            .withPassword( "dhis" ).withNetwork( NETWORK );
 
     @Container
-    public static GenericContainer<?> dhis2Container = new GenericContainer<>( "dhis2/core:2.36.7" )
-        .dependsOn( postgreSQLContainer )
+    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.36.7" )
+        .dependsOn( POSTGRESQL_CONTAINER )
         .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
-        .withNetwork( network ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
+        .withNetwork( NETWORK ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
         .withEnv( "WAIT_FOR_DB_CONTAINER", "db" + ":" + 5432 + " -t 0" );
 
     @BeforeAll
@@ -111,7 +109,7 @@ public class T2ARouteBuilderTestCase
         throws IOException
     {
         System.setProperty( "dhis2.api.url",
-            String.format( "http://localhost:%s/api", dhis2Container.getFirstMappedPort() ) );
+            String.format( "http://localhost:%s/api", DHIS2_CONTAINER.getFirstMappedPort() ) );
         System.setProperty( "org.unit.batch.size",
             String.valueOf( ThreadLocalRandom.current().nextInt( 1, 1024 ) ) );
         System.setProperty( "split.periods",
@@ -121,10 +119,10 @@ public class T2ARouteBuilderTestCase
         t2aHttpEndpointUri = String.format( "http://0.0.0.0:%s/dhis2/t2a", SocketUtils.findAvailableTcpPort() );
         System.setProperty( "http.endpoint.uri", t2aHttpEndpointUri );
 
-        RestAssured.baseURI = "http://" + dhis2Container.getHost() + ":" + dhis2Container.getFirstMappedPort();
-        RestAssured.requestSpecification = new RequestSpecBuilder().build().contentType( ContentType.JSON ).header(
-            HttpHeaders.AUTHORIZATION,
-            "Basic " + Base64.getEncoder().encodeToString( ("admin" + ":" + "district").getBytes() ) );
+        RestAssured.baseURI = "http://" + DHIS2_CONTAINER.getHost() + ":" + DHIS2_CONTAINER.getFirstMappedPort();
+        RestAssured.requestSpecification = new RequestSpecBuilder().build().contentType( ContentType.JSON ).auth()
+            .preemptive()
+            .basic( "admin", "district" );
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
 
         importMetaData();
