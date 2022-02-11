@@ -13,15 +13,15 @@
 ### Usage Example
 
 ```shell
-java -Ddhis2.api.url=https://play.dhis2.org/2.37.2/api -Ddhis2.api.username=admin -Ddhis2.api.password=district -Dorg.unit.level=3 -Dperiods=2022Q1,2022Q2,2022Q3,2022Q4 -Dpi.group.id=Lesc1szBJGe -jar dhis2-t2a.jar
+./dhis2-t2a.jar --dhis2.api.url=https://play.dhis2.org/2.37.2/api --dhis2.api.username=admin --dhis2.api.password=district --org.unit.level=3 --periods=2022Q1,2022Q2,2022Q3,2022Q4 --pi.group.id=Lesc1szBJGe
 ```
 
 ### Config
 
 By order of precedence, a config property can be specified:
 
-1. as a Java System property
-2. as an OS environment variable
+1. as a command-line argument (e.g., `--dhis2.api.username=admin`)
+2. as an OS environment variable (e.g., `export DHIS2_API_USERNAME=admin`)
 3. in a key/value property file called `application.properties` or a YAML file named `application.yml`
 
 | Config Name              | Description                                                                                                                                                                                                                                                                              | Default Value                     | Example Value                       |
