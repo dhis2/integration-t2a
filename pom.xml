@@ -138,6 +138,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <executable>true</executable>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
@@ -189,5 +190,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
