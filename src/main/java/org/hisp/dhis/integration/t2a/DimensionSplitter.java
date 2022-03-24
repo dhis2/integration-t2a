@@ -69,20 +69,14 @@ public class DimensionSplitter
             periodsAsList = List.of( String.join( ";", periods.split( "," ) ) );
         }
 
-        List<List<String>> orgUnitBatches = IntStream.iterate( 0,
-            i -> i < organisationUnits.getOrganisationUnits().size(), i -> i + orgUnitBatchSize )
-            .mapToObj( i -> organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
-                .collect( Collectors.toList() )
-                .subList( i, Math.min( i + orgUnitBatchSize, organisationUnits.getOrganisationUnits().size() ) ) )
+        List<String> ouIds = organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
             .collect( Collectors.toList() );
-
-        List<Dimensions> dimensions = periodsAsList.stream().flatMap(
-            pe -> orgUnitBatches.stream()
-                .flatMap( b -> programIndicatorGroup.getProgramIndicators().stream()
-                    .map( pi -> new Dimensions( pe, String.join( ";", b ), pi ) ) ) )
+        return IntStream.iterate( 0, i -> i < ouIds.size(), i -> i + orgUnitBatchSize )
+            .mapToObj( i -> String.join( ";", ouIds.subList( i, Math.min( i + orgUnitBatchSize, ouIds.size() ) ) ) )
+            .flatMap( ous -> periodsAsList.stream().flatMap(
+                per -> programIndicatorGroup.getProgramIndicators().stream()
+                    .map( pi -> new Dimensions( per, ous, pi ) ) ) )
             .collect( Collectors.toList() );
-
-        return dimensions;
     }
 
     public int getOrgUnitBatchSize()
