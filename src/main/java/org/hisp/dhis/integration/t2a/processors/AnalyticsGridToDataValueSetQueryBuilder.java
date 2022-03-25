@@ -27,84 +27,67 @@
  */
 package org.hisp.dhis.integration.t2a.processors;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.hisp.dhis.integration.t2a.model.AnalyticsGrid;
-import org.hisp.dhis.integration.t2a.model.AttributeValue;
-import org.hisp.dhis.integration.t2a.model.DataValue;
-import org.hisp.dhis.integration.t2a.model.DataValues;
+import org.hisp.dhis.api.v2_37_6.model.AttributeValue;
+import org.hisp.dhis.api.v2_37_6.model.DataValueSet;
+import org.hisp.dhis.api.v2_37_6.model.DataValue__1;
+import org.hisp.dhis.api.v2_37_6.model.ListGrid;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Component
 public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
 {
-    /**
-     * Using Jackson Mapper is a temporary workaround since
-     * exchange.getMessage().getBody( AnalyticsGrid.class ); doesn't work.
-     */
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-    @Value( "${aggr.data.export.attr.id:vudyDP7jUy5}" )
+    @Value( "${aggr.data.export.de.id:vudyDP7jUy5}" )
     private String aggrDataExportAttrId;
 
     public void process( Exchange exchange )
-        throws JsonProcessingException
     {
-        List<DataValue> dataValues = new ArrayList<>();
+        DataValueSet dataValueSet = new DataValueSet();
+        dataValueSet.setDataValues( new ArrayList<>() );
 
-        String analyticsGridStr = exchange.getMessage().getBody( String.class );
-        AnalyticsGrid analyticsGrid = OBJECT_MAPPER.readValue( analyticsGridStr, AnalyticsGrid.class );
-
+        ListGrid listGrid = exchange.getMessage().getBody( ListGrid.class );
         Dimensions dimensions = exchange.getProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY,
             Dimensions.class );
 
-        String query = "dataElementIdScheme=CODE" +
-            "&categoryOptionComboIdScheme=CODE" +
-            "&importStrategy=CREATE_AND_UPDATE" +
-            "&dryRun=false";
-
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
-        exchange.getMessage().setHeader( Exchange.HTTP_METHOD, "POST" );
+        exchange.getMessage().setHeader( "CamelDhis2.queryParams",
+            Map.of( "dataElementIdScheme", List.of( "CODE" ), "categoryOptionComboIdScheme", List.of( "CODE" ),
+                "importStrategy", List.of( "CREATE_AND_UPDATE" ), "dryRun", List.of( "false" ) ) );
 
         Optional<AttributeValue> aggregateDataExportAttrOptional = dimensions.getProgramIndicator()
-            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( aggrDataExportAttrId ) )
+            .getAttributeValues().get().stream()
+            .filter( av -> av.getAttribute().get().getId().get().equals( aggrDataExportAttrId ) )
             .findFirst();
 
         if ( aggregateDataExportAttrOptional.isPresent() )
         {
-            for ( List<String> row : analyticsGrid.getRows() )
+            for ( List<Object> row : listGrid.getRows().get() )
             {
-                String ou = row.get( 0 );
-                String pe = row.get( 4 );
-                String value = row.get( 8 );
+                String ou = (String) row.get( 0 );
+                String pe = (String) row.get( 4 );
+                String value = (String) row.get( 8 );
 
-                DataValue dv = new DataValue();
+                DataValue__1 dv = new DataValue__1();
                 dv.setValue( StringUtils.hasText( value ) ? value : "0" );
                 dv.setOrgUnit( ou );
                 dv.setPeriod( pe );
-                dv.setDataElement( aggregateDataExportAttrOptional.get().getValue() );
-                dv.setCategoryOptionCombo( dimensions.getProgramIndicator().getAggregateExportCategoryOptionCombo() );
+                dv.setDataElement( aggregateDataExportAttrOptional.get().getValue().get() );
+                dv.setCategoryOptionCombo(
+                    dimensions.getProgramIndicator().getAggregateExportAttributeOptionCombo().orElse( null ) );
 
-                dataValues.add( dv );
+                dataValueSet.getDataValues().get().add( dv );
             }
         }
 
-        DataValues finalDataValues = new DataValues();
-        finalDataValues.setDataValues( dataValues );
-
-        // todo just setting the POJO doesn't work. Should investigate
-        // leisurely.
-        exchange.getMessage().setBody( OBJECT_MAPPER.writeValueAsString( finalDataValues ) );
+        exchange.getMessage().setBody( dataValueSet );
     }
 }

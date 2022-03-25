@@ -40,11 +40,9 @@ import org.apache.camel.Message;
 import org.apache.camel.impl.engine.SimpleCamelContext;
 import org.apache.camel.support.DefaultExchange;
 import org.apache.camel.support.DefaultMessage;
+import org.hisp.dhis.api.v2_37_6.model.ProgramIndicator;
+import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
-import org.hisp.dhis.integration.t2a.model.OrganisationUnit;
-import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
-import org.hisp.dhis.integration.t2a.model.ProgramIndicator;
-import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -56,15 +54,12 @@ public class DimensionsSplitterTestCase
     @CsvSource( { "true,1,16", "true,2,8", "false,1,4", "false,2,2" } )
     public void testSplit( boolean splitPeriods, int orgUnitBatchSize, int expectedDimensionsSize )
     {
-        OrganisationUnits organisationUnits = new OrganisationUnits();
-        organisationUnits
-            .setOrganisationUnits( Arrays.asList( new OrganisationUnit().setId( "Bob" ),
-                new OrganisationUnit().setId( "Alice" ) ) );
+        List<String> organisationUnitIds = Arrays.asList( "Bob", "Alice" );
 
         ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
         programIndicatorGroup.setProgramIndicators(
-            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ),
-                new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
+            List.of( new ProgramIndicator().withId( UUID.randomUUID().toString() ),
+                new ProgramIndicator().withId( UUID.randomUUID().toString() ) ) );
 
         DimensionSplitter dimensionSplitter = new DimensionSplitter();
         dimensionSplitter.setOrgUnitBatchSize( orgUnitBatchSize );
@@ -72,21 +67,18 @@ public class DimensionsSplitterTestCase
         dimensionSplitter.setSplitPeriods( splitPeriods );
 
         List<Dimensions> dimensions = dimensionSplitter.split(
-            createExchange( new SimpleCamelContext(), organisationUnits, programIndicatorGroup ) );
+            createExchange( new SimpleCamelContext(), organisationUnitIds, programIndicatorGroup ) );
         assertEquals( expectedDimensionsSize, dimensions.size() );
     }
 
     @Test
     public void testSplitGivenSplitOrgUnitsConfigIsFalse()
     {
-        OrganisationUnits organisationUnits = new OrganisationUnits();
-        organisationUnits
-            .setOrganisationUnits(
-                Arrays.asList( new OrganisationUnit().setId( "Bob" ), new OrganisationUnit().setId( "Alice" ) ) );
+        List<String> organisationUnitIds = Arrays.asList( "Bob", "Alice" );
 
         ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
         programIndicatorGroup.setProgramIndicators(
-            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
+            List.of( new ProgramIndicator().withId( UUID.randomUUID().toString() ) ) );
 
         DimensionSplitter dimensionSplitter = new DimensionSplitter();
         dimensionSplitter.setOrgUnitBatchSize( 2 );
@@ -94,7 +86,7 @@ public class DimensionsSplitterTestCase
         dimensionSplitter.setSplitPeriods( ThreadLocalRandom.current().nextBoolean() );
 
         List<Dimensions> dimensions = dimensionSplitter
-            .split( createExchange( new SimpleCamelContext(), organisationUnits, programIndicatorGroup ) );
+            .split( createExchange( new SimpleCamelContext(), organisationUnitIds, programIndicatorGroup ) );
         assertEquals( 1, dimensions.size() );
         assertEquals( "Bob;Alice", dimensions.get( 0 ).getOrganisationUnitIds() );
         assertEquals( "2022Q1", dimensions.get( 0 ).getPeriods() );
@@ -103,13 +95,11 @@ public class DimensionsSplitterTestCase
     @Test
     public void testSplitGivenSplitPeriodsConfigIsFalse()
     {
-        OrganisationUnits organisationUnits = new OrganisationUnits();
-        organisationUnits
-            .setOrganisationUnits( List.of( new OrganisationUnit().setId( "Bob" ) ) );
+        List<String> organisationUnitIds = Arrays.asList( "Bob" );
 
         ProgramIndicatorGroup programIndicatorGroup = new ProgramIndicatorGroup();
         programIndicatorGroup.setProgramIndicators(
-            List.of( new ProgramIndicator().setId( UUID.randomUUID().toString() ) ) );
+            List.of( new ProgramIndicator().withId( UUID.randomUUID().toString() ) ) );
 
         DimensionSplitter dimensionSplitter = new DimensionSplitter();
         dimensionSplitter.setOrgUnitBatchSize( ThreadLocalRandom.current().nextInt( 1, Integer.MAX_VALUE ) );
@@ -117,13 +107,13 @@ public class DimensionsSplitterTestCase
         dimensionSplitter.setSplitPeriods( false );
 
         List<Dimensions> dimensions = dimensionSplitter.split(
-            createExchange( new SimpleCamelContext(), organisationUnits, programIndicatorGroup ) );
+            createExchange( new SimpleCamelContext(), organisationUnitIds, programIndicatorGroup ) );
         assertEquals( 1, dimensions.size() );
         assertEquals( "2022Q1;2022Q2;2022Q3;2022Q4", dimensions.get( 0 ).getPeriods() );
         assertEquals( "Bob", dimensions.get( 0 ).getOrganisationUnitIds() );
     }
 
-    private Exchange createExchange( CamelContext camelContext, OrganisationUnits organisationUnits,
+    private Exchange createExchange( CamelContext camelContext, List<String> organisationUnitIds,
         ProgramIndicatorGroup programIndicatorGroup )
     {
         Exchange exchange = new DefaultExchange( camelContext );
@@ -131,7 +121,7 @@ public class DimensionsSplitterTestCase
         message.setBody( programIndicatorGroup );
 
         exchange.setMessage( message );
-        exchange.setProperty( T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY, organisationUnits );
+        exchange.setProperty( T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY, organisationUnitIds );
 
         return exchange;
     }

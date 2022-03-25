@@ -27,20 +27,18 @@
  */
 package org.hisp.dhis.integration.t2a;
 
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.camel.Exchange;
+import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
-import org.hisp.dhis.integration.t2a.model.OrganisationUnit;
-import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
-import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
 
 @Component
 public class DimensionSplitter
@@ -56,8 +54,8 @@ public class DimensionSplitter
 
     public List<Dimensions> split( Exchange exchange )
     {
-        OrganisationUnits organisationUnits = exchange.getProperty( ALL_ORG_UNITS_PROPERTY,
-            OrganisationUnits.class );
+        List<String> organisationUnits = exchange.getProperty( ALL_ORG_UNITS_PROPERTY,
+            List.class );
         ProgramIndicatorGroup programIndicatorGroup = exchange.getMessage().getBody( ProgramIndicatorGroup.class );
         List<String> periodsAsList;
         if ( splitPeriods )
@@ -70,15 +68,14 @@ public class DimensionSplitter
         }
 
         List<List<String>> orgUnitBatches = IntStream.iterate( 0,
-            i -> i < organisationUnits.getOrganisationUnits().size(), i -> i + orgUnitBatchSize )
-            .mapToObj( i -> organisationUnits.getOrganisationUnits().stream().map( OrganisationUnit::getId )
-                .collect( Collectors.toList() )
-                .subList( i, Math.min( i + orgUnitBatchSize, organisationUnits.getOrganisationUnits().size() ) ) )
+            i -> i < organisationUnits.size(), i -> i + orgUnitBatchSize )
+            .mapToObj( i -> organisationUnits
+                .subList( i, Math.min( i + orgUnitBatchSize, organisationUnits.size() ) ) )
             .collect( Collectors.toList() );
 
         List<Dimensions> dimensions = periodsAsList.stream().flatMap(
             pe -> orgUnitBatches.stream()
-                .flatMap( b -> programIndicatorGroup.getProgramIndicators().stream()
+                .flatMap( b -> programIndicatorGroup.getProgramIndicators().get().stream()
                     .map( pi -> new Dimensions( pe, String.join( ";", b ), pi ) ) ) )
             .collect( Collectors.toList() );
 

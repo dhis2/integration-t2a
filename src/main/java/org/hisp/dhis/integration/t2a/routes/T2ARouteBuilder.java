@@ -27,17 +27,16 @@
  */
 package org.hisp.dhis.integration.t2a.routes;
 
-import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
-import org.apache.http.HttpHeaders;
+import org.hisp.dhis.api.v2_37_6.model.ListGrid;
+import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.DimensionSplitter;
-import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
-import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridQueryBuilder;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridToDataValueSetQueryBuilder;
 import org.slf4j.Logger;
@@ -55,17 +54,9 @@ public class T2ARouteBuilder extends RouteBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger( T2ARouteBuilder.class );
 
-    public static final String PROGRAM_INDICATORS_PROPERTY = "pis";
-
     public static final String DIMENSIONS_PROPERTY = "dimensions";
 
     public static final String ALL_ORG_UNITS_PROPERTY = "ous";
-
-    @Value( "${dhis2.api.username}" )
-    private String username;
-
-    @Value( "${dhis2.api.password}" )
-    private String password;
 
     @Value( "${thread.pool.size:1}" )
     private int threadPoolSize;
@@ -83,52 +74,21 @@ public class T2ARouteBuilder extends RouteBuilder
     public void configure()
         throws Exception
     {
-        String authHeader = createAuthHeader();
-
-        buildSourceRoute( authHeader );
+        buildSourceRoute();
         buildFetchOrgUnitsRoute();
         buildScheduleAnalyticsRoute();
-        buildPollAnalyticsStatusRoute();
         buildFetchProgramIndicatorsRoute();
-        buildPushAggregatedProgramIndicatorsRoute( authHeader );
+        buildPushAggregatedProgramIndicatorsRoute();
     }
 
-    protected void buildSourceRoute( String authHeader )
+    protected void buildSourceRoute()
     {
         from( "jetty:{{http.endpoint.uri:http://localhost:8081/dhis2/t2a}}" )
             .removeHeaders( "*" )
-            .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
             .to( "seda:t2a?waitForTaskToComplete=never" );
 
         from( "quartz://t2a?cron={{schedule.expression:0 0 0 * * ?}}" )
-            .setHeader( HttpHeaders.AUTHORIZATION, constant( authHeader ) )
             .to( "seda:t2a" );
-    }
-
-    protected void buildPollAnalyticsStatusRoute()
-    {
-        from( "direct:poll-analytics" ).routeId( "pollAnalyticsRoute" ).streamCaching( "true" )
-            .setHeader( "CamelHttpMethod", constant( "GET" ) )
-            .log( LoggingLevel.INFO, LOGGER, "Analytics started with task ID ${header.taskId}" )
-            .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
-            .log( LoggingLevel.DEBUG, LOGGER,
-                "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
-            .setProperty( "status", jsonpath( "$[0]" ) )
-            .loopDoWhile( simple( "${exchangeProperty.status[completed]} == false" ) )
-            .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
-            .log( LoggingLevel.DEBUG, LOGGER,
-                "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
-            .setProperty( "status", jsonpath( "$[0]" ) ).delay( 10000 ).end()
-            .log( LoggingLevel.INFO, LOGGER, "Analytics task completed" )
-            .choice()
-            .when( simple( "${exchangeProperty.status[level]} == 'ERROR'" ) )
-            .throwException( RuntimeException.class, "Analytics failed => ${body}" ).end()
-            .log( LoggingLevel.INFO, LOGGER, "Analytics status: ${header.status}" )
-            .end()
-            .setHeader( "Content-Type", constant( "application/json" ) )
-            .setHeader( "CamelHttpMethod", constant( "POST" ) )
-            .setBody( simple( "${null}" ) )
-            .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true" );
     }
 
     protected void buildFetchOrgUnitsRoute()
@@ -136,14 +96,9 @@ public class T2ARouteBuilder extends RouteBuilder
         from( "seda:t2a" ).setProperty( "startTime", simple( "${bean:java.lang.System?method=currentTimeMillis}" ) )
             .streamCaching( "true" )
             .log( LoggingLevel.INFO, LOGGER, "Fetching organisation units..." )
-            .setHeader( Exchange.HTTP_QUERY, simple( "paging=false&fields=id&filter=level:eq:{{org.unit.level}}" ) )
-            .toD( "{{dhis2.api.url}}/organisationUnits" )
-            .log( LoggingLevel.DEBUG, LOGGER, "HTTP GET {{dhis2.api.url}}/organisationUnits => ${body}" )
-            .unmarshal().json( OrganisationUnits.class )
-            .setProperty( ALL_ORG_UNITS_PROPERTY, simple( "${body}" ) )
-            .removeHeader( Exchange.HTTP_QUERY ) // removing query string, so it
-            // won't affect the rest of the
-            // route
+            .toD(
+                "dhis2://get/resource?path=organisationUnits&fields=id&filter=level:eq:{{org.unit.level}}&client=#dhis2Client" )
+            .setProperty( ALL_ORG_UNITS_PROPERTY, jsonpath( "$.organisationUnits..id" ) )
             .setHeader( "skipAggregate", constant( "true" ) )
             .setHeader( "skipEvents", constant( "false" ) )
             .choice().when( simple( "{{run.event.analytics:true}}" ) ).to( "direct:run-analytics" ).end()
@@ -155,36 +110,25 @@ public class T2ARouteBuilder extends RouteBuilder
 
     protected void buildScheduleAnalyticsRoute()
     {
-        from( "direct:run-analytics" )
-            .setHeader( "Content-Type", constant( "application/json" ) )
-            .setHeader( "CamelHttpMethod", constant( "POST" ) )
-            .setBody( simple( "${null}" ) )
-            .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true" )
+        from( "direct:run-analytics" ).routeId( "scheduleAnalyticsRoute" )
             .log( LoggingLevel.INFO, LOGGER, "Scheduling analytics task..." )
+            .setHeader( "CamelDhis2.queryParams", constant( Map.of( "cacheClear", List.of( "true" ) ) ) )
+            .toD( "dhis2://post/resource?path=maintenance&client=#dhis2Client" )
             .toD(
-                "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}}" )
-            .log( LoggingLevel.DEBUG, LOGGER,
-                "HTTP POST {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}} => ${body}" )
-            .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:poll-analytics" );
+                "dhis2://resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}}&client=#dhis2Client" )
+            .log( LoggingLevel.INFO, LOGGER, "Analytics task completed" );
     }
 
     protected void buildFetchProgramIndicatorsRoute()
     {
-        from( "direct:collect" ).streamCaching( "true" ).setHeader( Exchange.HTTP_METHOD, constant( "GET" ) )
-            .setHeader( Exchange.HTTP_QUERY, constant(
-                "fields=programIndicators[id,name,aggregateExportCategoryOptionCombo,"
-                    + "aggregateExportAttributeOptionCombo,attributeValues]" ) )
-            .log( LoggingLevel.INFO, LOGGER,
-                "Fetching program indicators..." )
-            .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}}" )
-            .log( LoggingLevel.DEBUG, LOGGER,
-                "HTTP GET {{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}} => ${body}" )
-            .unmarshal()
-            .json( ProgramIndicatorGroup.class ).setProperty( PROGRAM_INDICATORS_PROPERTY, simple( "${body}" ) )
-            .removeHeader( Exchange.HTTP_QUERY ).to( "direct:push" );
+        from( "direct:collect" ).log( LoggingLevel.INFO, LOGGER, "Fetching program indicators..." )
+            .toD(
+                "dhis2://get/resource?path=programIndicatorGroups/{{pi.group.id}}&fields=programIndicators[id,name,aggregateExportCategoryOptionCombo,aggregateExportAttributeOptionCombo,attributeValues]&client=#dhis2Client" )
+            .unmarshal().json( ProgramIndicatorGroup.class )
+            .to( "direct:push" );
     }
 
-    protected void buildPushAggregatedProgramIndicatorsRoute( String authHeader )
+    protected void buildPushAggregatedProgramIndicatorsRoute()
         throws Exception
     {
         ThreadPoolBuilder builder = new ThreadPoolBuilder( getContext() );
@@ -192,26 +136,20 @@ public class T2ARouteBuilder extends RouteBuilder
 
         from( "direct:push" ).streamCaching( "true" )
             .split( method( dimensionSplitter, "split" ) )
-            .executorService( programIndicatorPool )
-            .log( LoggingLevel.INFO, LOGGER,
-                "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
-            .process( analyticsGridQueryBuilder ).setHeader( "Authorization", constant( authHeader ) )
-            .setHeader( "AnalyticsQueryParams", simple( "${header.CamelHttpQuery}" ) )
-            .toD( "{{dhis2.api.url}}/analytics" )
-            .log( LoggingLevel.DEBUG, LOGGER,
-                "HTTP GET {{dhis2.api.url}}/analytics?${header.AnalyticsQueryParams} Response => ${body}" ).
-            process( analyticsGridToDataValueSetQueryBuilder )
-            .setHeader( "Content-Type", constant( "application/json" ) )
-            .toD( "{{dhis2.api.url}}/dataValueSets" )
-            .log( LoggingLevel.DEBUG, LOGGER, "HTTP POST {{dhis2.api.url}}/dataValueSets Response => ${body}" )
+                .executorService( programIndicatorPool )
+                .log( LoggingLevel.INFO,
+                    LOGGER,
+                    "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
+                .process( analyticsGridQueryBuilder )
+                .toD( "dhis2://get/resource?path=analytics&client=#dhis2Client" ).unmarshal().json( ListGrid.class )
+                .process( analyticsGridToDataValueSetQueryBuilder )
+                .toD( "dhis2://post/resource?path=dataValueSets&inBody=resource&client=#dhis2Client" )
+                .log( LoggingLevel.DEBUG,
+                    LOGGER,
+                    "HTTP POST {{dhis2.api.url}}/dataValueSets Response => ${body}" )
             .end()
             .setHeader( "skipAggregate", constant( "false" ) )
             .setHeader( "skipEvents", constant( "true" ) )
             .to( "direct:run-analytics" );
-    }
-
-    protected String createAuthHeader()
-    {
-        return "Basic " + Base64.getEncoder().encodeToString( (username + ":" + password).getBytes() );
     }
 }
