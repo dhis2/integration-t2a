@@ -55,8 +55,8 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
      */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    @Value( "${aggr.data.export.de.id:vudyDP7jUy5}" )
-    private String aggrDataExportDeId;
+    @Value( "${aggr.data.export.attr.id:vudyDP7jUy5}" )
+    private String aggrDataExportAttrId;
 
     public void process( Exchange exchange )
         throws JsonProcessingException
@@ -77,11 +77,11 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
         exchange.getMessage().setHeader( Exchange.HTTP_METHOD, "POST" );
 
-        Optional<AttributeValue> aggregateDataExportDataElementOptional = dimensions.getProgramIndicator()
-            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( aggrDataExportDeId ) )
+        Optional<AttributeValue> aggregateDataExportAttrOptional = dimensions.getProgramIndicator()
+            .getAttributeValues().stream().filter( av -> av.getAttribute().getId().equals( aggrDataExportAttrId ) )
             .findFirst();
 
-        if ( aggregateDataExportDataElementOptional.isPresent() )
+        if ( aggregateDataExportAttrOptional.isPresent() )
         {
             for ( List<String> row : analyticsGrid.getRows() )
             {
@@ -93,7 +93,7 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
                 dv.setValue( StringUtils.hasText( value ) ? value : "0" );
                 dv.setOrgUnit( ou );
                 dv.setPeriod( pe );
-                dv.setDataElement( aggregateDataExportDataElementOptional.get().getValue() );
+                dv.setDataElement( aggregateDataExportAttrOptional.get().getValue() );
                 dv.setCategoryOptionCombo( dimensions.getProgramIndicator().getAggregateExportCategoryOptionCombo() );
 
                 dataValues.add( dv );
