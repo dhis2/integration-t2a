@@ -115,7 +115,7 @@ public class T2ARouteBuilder extends RouteBuilder
             .log( LoggingLevel.DEBUG,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
                 "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
-            .setProperty( "status", jsonpath( "$[0]" ) ).delay( 30000 ).end()
+            .setProperty( "status", jsonpath( "$[0]" ) ).delay( 10000 ).end()
             .log( LoggingLevel.INFO,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
                 "Analytics task completed" )
@@ -124,7 +124,12 @@ public class T2ARouteBuilder extends RouteBuilder
             .throwException( RuntimeException.class, "Analytics failed => ${body}" ).end()
             .log( LoggingLevel.INFO,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Analytics status: ${header.status}" );
+                "Analytics status: ${header.status}" )
+            .end()
+            .setHeader( "Content-Type", constant( "application/json" ) )
+            .setHeader( "CamelHttpMethod", constant( "POST" ) )
+            .setBody( simple( "${null}" ) )
+            .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true&appReload=true" );
     }
 
     protected void buildFetchOrgUnitsRoute()
@@ -157,7 +162,11 @@ public class T2ARouteBuilder extends RouteBuilder
 
     protected void buildScheduleAnalyticsRoute()
     {
-        from( "direct:run-analytics" ).setBody().simple( "${null}" ).setHeader( "CamelHttpMethod", constant( "PUT" ) )
+        from( "direct:run-analytics" )
+            .setHeader( "Content-Type", constant( "application/json" ) )
+            .setHeader( "CamelHttpMethod", constant( "POST" ) )
+            .setBody( simple( "${null}" ) )
+            .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true" )
             .log( LoggingLevel.INFO,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
                 "Scheduling analytics task..." )
@@ -165,7 +174,7 @@ public class T2ARouteBuilder extends RouteBuilder
                 "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}}" )
             .log( LoggingLevel.DEBUG,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "HTTP PUT {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}} => ${body}" )
+                "HTTP POST {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}} => ${body}" )
             .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:poll-analytics" );
     }
 
@@ -193,7 +202,8 @@ public class T2ARouteBuilder extends RouteBuilder
         ThreadPoolBuilder builder = new ThreadPoolBuilder( getContext() );
         ExecutorService programIndicatorPool = builder.poolSize( threadPoolSize ).maxPoolSize( threadPoolSize ).build();
 
-        from( "direct:push" ).streamCaching( "true" ).split( method( dimensionSplitter, "split" ) )
+        from( "direct:push" ).streamCaching( "true" )
+            .split( method( dimensionSplitter, "split" ) )
             .executorService( programIndicatorPool )
             .log( LoggingLevel.INFO,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),

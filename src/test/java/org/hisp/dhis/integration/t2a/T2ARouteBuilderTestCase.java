@@ -45,8 +45,10 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,7 +100,7 @@ public class T2ARouteBuilderTestCase
             .withPassword( "dhis" ).withNetwork( NETWORK );
 
     @Container
-    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.36.7" )
+    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.37.4" )
         .dependsOn( POSTGRESQL_CONTAINER )
         .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
         .withNetwork( NETWORK ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
@@ -132,7 +134,18 @@ public class T2ARouteBuilderTestCase
         dataElementId = createAggregateDataElement();
         addOrgUnitToProgram( orgUnitId );
         updateProgramIndicatorAttributeValue();
-        createTrackedEntityInstances();
+    }
+
+    @AfterEach
+    public void afterEach()
+    {
+        deleteTrackedEntityInstances();
+        when().delete( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
+            orgUnitId ).then()
+            .statusCode( 204 );
+        when().post(
+            "api/maintenance?cacheClear=true&analyticsTableClear=true&analyticsTableAnalyze=true&zeroDataValueRemoval=true&softDeletedDataValueRemoval=true&softDeletedEventRemoval=true&softDeletedEnrollmentRemoval=true&softDeletedTrackedEntityInstanceRemoval=true&periodPruning=true&expiredInvitationsClear=true&sqlViewsDrop=true&sqlViewsCreate=true&categoryOptionComboUpdate=true&ouPathsUpdate=true&appReload=true" )
+            .then().statusCode( 204 );
     }
 
     @AfterAll
@@ -149,6 +162,7 @@ public class T2ARouteBuilderTestCase
     public void beforeEach()
         throws Exception
     {
+        createTrackedEntityInstances();
         if ( !camelContext.isStarted() )
         {
             AdviceWith.adviceWith( camelContext, "pollAnalyticsRoute", r -> r.weaveAddLast().to( "mock:spy" ) );
@@ -178,8 +192,7 @@ public class T2ARouteBuilderTestCase
             "valueType", "NUMBER",
             "name", "EIR - Births (home)",
             "shortName", "Births (home)",
-            "categoryCombo", Map.of( "id", "bjDvmb4bfuf" ),
-            "aggregationLevels", List.of( 1 ) );
+            "categoryCombo", Map.of( "id", "bjDvmb4bfuf" ) );
 
         return given().body( dataElement ).when().post( "api/dataElements" ).then().statusCode( 201 ).extract().body()
             .path( "response.uid" );
@@ -237,6 +250,19 @@ public class T2ARouteBuilderTestCase
         }
     }
 
+    private void deleteTrackedEntityInstances()
+    {
+        List<Map<String, Object>> trackedEntityInstances = given().get(
+            "api/trackedEntityInstances?ou={organisationUnitId}&program=SSLpOM0r1U7", orgUnitId ).then()
+            .statusCode( 200 ).extract().body().jsonPath().getList( "trackedEntityInstances" );
+        for ( Map<String, Object> trackedEntityInstance : trackedEntityInstances )
+        {
+            given().delete( "api/trackedEntityInstances/{trackedEntityInstanceId}",
+                trackedEntityInstance.get( "trackedEntityInstance" ) ).then()
+                .statusCode( 200 );
+        }
+    }
+
     private static JsonPath createTrackedEntityInstance( String uniqueSystemIdentifier, Name name )
         throws IOException
     {
@@ -262,13 +288,15 @@ public class T2ARouteBuilderTestCase
 
         spyEndpoint.await();
 
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
-            orgUnitId ).then()
-            .statusCode( 200 ).body( "[0]", equalTo( "5.0" ) );
+        when().get(
+            "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
+            dataElementId, orgUnitId ).then()
+            .statusCode( 200 ).body( "rows[0][2]", equalTo( "5.0" ) );
     }
 
     @Test
     @Timeout( 360 )
+    @Disabled
     public void testNullDataValueOverwritesAggregateDataValue()
         throws Exception
     {
@@ -288,9 +316,10 @@ public class T2ARouteBuilderTestCase
             .statusCode( 204 );
 
         spyEndpoint.await();
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
-            orgUnitId ).then()
-            .statusCode( 200 ).body( "[0]", equalTo( "6.0" ) );
+        when().get(
+            "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
+            dataElementId, orgUnitId ).then()
+            .statusCode( 200 ).body( "rows[0][2]", equalTo( "6.0" ) );
 
         String eventPut = StreamUtils.copyToString(
             Thread.currentThread().getContextClassLoader().getResourceAsStream( "eventPut.json" ),
@@ -306,8 +335,9 @@ public class T2ARouteBuilderTestCase
 
         spyEndpoint.await();
 
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
-            orgUnitId ).then()
-            .statusCode( 200 ).body( "[0]", equalTo( "5.0" ) );
+        when().get(
+            "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
+            dataElementId, orgUnitId ).then()
+            .statusCode( 200 ).body( "rows[0][2]", equalTo( "5.0" ) );
     }
 }
