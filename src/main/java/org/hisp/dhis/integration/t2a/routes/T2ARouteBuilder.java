@@ -72,6 +72,9 @@ public class T2ARouteBuilder extends RouteBuilder
     @Autowired
     private AnalyticsGridToDataValueSetQueryBuilder analyticsGridToDataValueSetQueryBuilder;
 
+    @Autowired
+    private AnalyticsGridQueryBuilder analyticsGridQueryBuilder;
+
     @Override
     public void configure()
         throws Exception
@@ -129,7 +132,7 @@ public class T2ARouteBuilder extends RouteBuilder
             .setHeader( "Content-Type", constant( "application/json" ) )
             .setHeader( "CamelHttpMethod", constant( "POST" ) )
             .setBody( simple( "${null}" ) )
-            .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true&appReload=true" );
+            .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true" );
     }
 
     protected void buildFetchOrgUnitsRoute()
@@ -208,16 +211,18 @@ public class T2ARouteBuilder extends RouteBuilder
             .log( LoggingLevel.INFO,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
                 "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
-            .process( new AnalyticsGridQueryBuilder() ).setHeader( "Authorization", constant( authHeader ) )
-            .toD( "{{dhis2.api.url}}/analytics" ).process( analyticsGridToDataValueSetQueryBuilder )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "HTTP GET {{dhis2.api.url}}/analytics => ${body}" )
+            .process( analyticsGridQueryBuilder ).setHeader( "Authorization", constant( authHeader ) )
+            .setHeader( "AnalyticsQueryParams", simple( "${header.CamelHttpQuery}" ) )
+            .toD( "{{dhis2.api.url}}/analytics" )
+             .log( LoggingLevel.DEBUG,
+        org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+        "HTTP GET {{dhis2.api.url}}/analytics?${header.AnalyticsQueryParams} Response => ${body}" ).
+            process( analyticsGridToDataValueSetQueryBuilder )
             .setHeader( "Content-Type", constant( "application/json" ) )
             .toD( "{{dhis2.api.url}}/dataValueSets" )
             .log( LoggingLevel.DEBUG,
                 org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "HTTP POST {{dhis2.api.url}}/dataValueSets => ${body}" )
+                "HTTP POST {{dhis2.api.url}}/dataValueSets Response => ${body}" )
             .end()
             .setHeader( "skipAggregate", constant( "false" ) )
             .setHeader( "skipEvents", constant( "true" ) )

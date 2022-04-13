@@ -31,7 +31,9 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
+import org.springframework.stereotype.Component;
 
+@Component
 public class AnalyticsGridQueryBuilder implements Processor
 {
     public void process( Exchange exchange )
@@ -44,5 +46,7 @@ public class AnalyticsGridQueryBuilder implements Processor
 
         exchange.setProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY, dimensions );
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
+//        exchange.setProperty("test", query );
+
     }
 }

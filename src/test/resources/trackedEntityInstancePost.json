@@ -38,13 +38,6 @@
               "providedElsewhere": false
             }
           ]
-        },
-        {
-          "status": "SCHEDULE",
-          "dueDate": "2022-01-19",
-          "programStage": "s53RFfXA75f",
-          "program": "SSLpOM0r1U7",
-          "orgUnit": "%1$s"
         }
       ]
     }
