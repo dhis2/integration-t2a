@@ -27,29 +27,20 @@
  */
 package org.hisp.dhis.integration.t2a;
 
-import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.when;
-import static org.hamcrest.Matchers.equalTo;
-
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-
+import com.github.javafaker.Faker;
+import com.github.javafaker.Name;
+import io.restassured.RestAssured;
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.http.ContentType;
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.AdviceWith;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -64,13 +55,16 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import com.github.javafaker.Faker;
-import com.github.javafaker.Name;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import io.restassured.RestAssured;
-import io.restassured.builder.RequestSpecBuilder;
-import io.restassured.http.ContentType;
-import io.restassured.path.json.JsonPath;
+import static io.restassured.RestAssured.given;
+import static io.restassured.RestAssured.when;
+import static org.hamcrest.Matchers.equalTo;
 
 @SpringBootTest
 @CamelSpringBootTest
@@ -114,12 +108,8 @@ public class T2ARouteBuilderTestCase
     {
         System.setProperty( "dhis2.api.url",
             String.format( "http://localhost:%s/api", DHIS2_CONTAINER.getFirstMappedPort() ) );
-        System.setProperty( "org.unit.batch.size",
-            String.valueOf( ThreadLocalRandom.current().nextInt( 1, 1024 ) ) );
-        System.setProperty( "split.periods",
-            String.valueOf( true ) );
-        System.setProperty( "thread.pool.size",
-            String.valueOf( Runtime.getRuntime().availableProcessors() ) );
+        System.setProperty( "org.unit.batch.size", "1" );
+        System.setProperty( "split.periods", "true" );
         t2aHttpEndpointUri = String.format( "http://0.0.0.0:%s/dhis2/t2a", SocketUtils.findAvailableTcpPort() );
         System.setProperty( "http.endpoint.uri", t2aHttpEndpointUri );
 
@@ -142,7 +132,6 @@ public class T2ARouteBuilderTestCase
         System.clearProperty( "dhis2.api.url" );
         System.clearProperty( "org.unit.batch.size" );
         System.clearProperty( "split.periods" );
-        System.clearProperty( "thread.pool.size" );
         System.clearProperty( "http.endpoint.uri" );
     }
 
@@ -156,7 +145,7 @@ public class T2ARouteBuilderTestCase
         createTrackedEntityInstances( orgUnitUnderTestId );
         if ( !camelContext.isStarted() )
         {
-            AdviceWith.adviceWith( camelContext, "pollAnalyticsRoute", r -> r.weaveAddLast().to( "mock:spy" ) );
+            AdviceWith.adviceWith( camelContext, "t2aRoute", r -> r.weaveAddLast().to( "mock:spy" ) );
             camelContext.start();
         }
 
@@ -257,28 +246,30 @@ public class T2ARouteBuilderTestCase
 
             createTrackedEntityInstance( uniqueSystemIdentifier, name, orgUnitId );
         }
-        Thread.sleep( 1000 );
+
+//         FIXME
+//          Thread.sleep( 1000 );
     }
 
-    private static JsonPath createTrackedEntityInstance( String uniqueSystemIdentifier, Name name, String orgUnitId )
+    private static void createTrackedEntityInstance( String uniqueSystemIdentifier, Name name, String orgUnitId )
         throws IOException
     {
         String trackedEntityInstance = StreamUtils.copyToString(
             Thread.currentThread().getContextClassLoader().getResourceAsStream( "trackedEntityInstancePost.json" ),
             Charset.defaultCharset() );
 
-        return given().body(
+        given().body(
                 String.format( trackedEntityInstance, orgUnitId, uniqueSystemIdentifier, name.firstName(),
                     name.lastName() ) )
             .when().post( "api/trackedEntityInstances" ).then().statusCode( 200 ).extract().jsonPath();
     }
 
-    @Test
+    @RepeatedTest( 3 )
     @Timeout( 180 )
     public void testHttpPostCreatesAggregateDataValue()
         throws Exception
     {
-        spyEndpoint.setExpectedCount( 2 );
+        spyEndpoint.setExpectedCount( 1 );
 
         given().baseUri( t2aHttpEndpointUri ).when().post().then()
             .statusCode( 204 );
@@ -286,55 +277,8 @@ public class T2ARouteBuilderTestCase
         spyEndpoint.await();
 
         when().get(
-                "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
-                dataElementId, orgUnitUnderTestId ).then()
-            .statusCode( 200 ).body( "rows[0][2]", equalTo( "5.0" ) );
-    }
-
-    @Test
-    @Timeout( 360 )
-    public void testNullDataValueOverwritesAggregateDataValue()
-        throws Exception
-    {
-        Faker faker = new Faker();
-        Name name = faker.name();
-        String uniqueSystemIdentifier = given().get( "api/trackedEntityAttributes/KSr2yTdu1AI/generate" ).then()
-            .statusCode( 200 ).extract().path( "value" );
-
-        JsonPath jsonPath = createTrackedEntityInstance( uniqueSystemIdentifier, name, orgUnitUnderTestId );
-        String trackedEntityInstanceId = jsonPath.get( "response.importSummaries[0].reference" );
-        String eventId = jsonPath.get(
-            "response.importSummaries[0].enrollments.importSummaries[0].events.importSummaries[0].reference" );
-
-        spyEndpoint.setExpectedCount( 2 );
-
-        given().baseUri( t2aHttpEndpointUri ).when().post().then()
-            .statusCode( 204 );
-
-        spyEndpoint.await();
-        when().get(
-                "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
-                dataElementId, orgUnitUnderTestId ).then()
-            .statusCode( 200 ).body( "rows[0][2]", equalTo( "6.0" ) );
-
-        String eventPut = StreamUtils.copyToString(
-            Thread.currentThread().getContextClassLoader().getResourceAsStream( "eventPut.json" ),
-            Charset.defaultCharset() );
-
-        given().body( String.format( eventPut, eventId, orgUnitUnderTestId, trackedEntityInstanceId ) ).when()
-            .put( "api/events/{eventId}/ABhkInP0wGY", eventId ).then().statusCode( 200 );
-
-        spyEndpoint.reset();
-        spyEndpoint.setExpectedCount( 2 );
-        given().baseUri(
-                t2aHttpEndpointUri ).when().post().then()
-            .statusCode( 204 );
-
-        spyEndpoint.await();
-
-        when().get(
-                "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
-                dataElementId, orgUnitUnderTestId ).then()
-            .statusCode( 200 ).body( "rows[0][2]", equalTo( "5.0" ) );
+                "api/analytics?dimension=dx:{programIndicator}&dimension=ou:{organisationUnit}&dimension=pe:2022Q1&rows=ou;pe&columns=dx&skipMeta=true",
+                "yC212U3ifgY", orgUnitUnderTestId ).then()
+            .statusCode( 200 ).body( "rows[0][8]", equalTo( "5.0" ) );
     }
 }
