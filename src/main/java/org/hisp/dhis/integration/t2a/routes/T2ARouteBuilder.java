@@ -27,13 +27,13 @@
  */
 package org.hisp.dhis.integration.t2a.routes;
 
+import java.util.Base64;
+
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.http.HttpHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.util.Base64;
 
 /**
  * Pulling program indicators one at a time as DataValueSets (beware if your
@@ -55,7 +55,7 @@ public class T2ARouteBuilder extends RouteBuilder
         String authHeader = createAuthHeader();
 
         buildSourceRoute( authHeader );
-        buildFetchOrgUnitsRoute();
+        buildMainRoute();
         buildScheduleAnalyticsRoute();
         buildPollAnalyticsStatusRoute();
     }
@@ -102,9 +102,10 @@ public class T2ARouteBuilder extends RouteBuilder
             .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true" );
     }
 
-    protected void buildFetchOrgUnitsRoute()
+    protected void buildMainRoute()
     {
-        from( "seda:t2a" ).routeId( "t2aRoute" ).setProperty( "startTime", simple( "${bean:java.lang.System?method=currentTimeMillis}" ) )
+        from( "seda:t2a" ).routeId( "t2aRoute" )
+            .setProperty( "startTime", simple( "${bean:java.lang.System?method=currentTimeMillis}" ) )
             .streamCaching( "true" )
             .setHeader( "skipAggregate", constant( "true" ) )
             .setHeader( "skipEvents", constant( "false" ) )
