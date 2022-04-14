@@ -46,7 +46,6 @@ public class AnalyticsGridQueryBuilder implements Processor
 
         exchange.setProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY, dimensions );
         exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
-//        exchange.setProperty("test", query );
 
     }
 }
