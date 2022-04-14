@@ -245,7 +245,7 @@ public class T2ARouteBuilderTestCase
             .statusCode( 200 );
     }
 
-    private static void createTrackedEntityInstances( String orgUnitId )
+    private void createTrackedEntityInstances( String orgUnitId )
         throws IOException, InterruptedException
     {
         Faker faker = new Faker();
@@ -257,6 +257,13 @@ public class T2ARouteBuilderTestCase
 
             createTrackedEntityInstance( uniqueSystemIdentifier, name, orgUnitId );
         }
+        dhis2_13102();
+    }
+
+    //FIXME: https://jira.dhis2.org/browse/DHIS2-13102
+    private void dhis2_13102()
+        throws InterruptedException
+    {
         Thread.sleep( 1000 );
     }
 
