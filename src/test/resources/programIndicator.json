@@ -1,6 +1,20 @@
 {
   "name": "EIR - Births (home)",
   "shortName": "Births (home)",
+  "analyticsPeriodBoundaries": [
+    {
+      "analyticsPeriodBoundaryType": "AFTER_START_OF_REPORTING_PERIOD",
+      "boundaryTarget": "ENROLLMENT_DATE",
+      "offsetPeriods": 0,
+      "offsetPeriodType": "Quarterly"
+    },
+    {
+      "analyticsPeriodBoundaryType": "BEFORE_END_OF_REPORTING_PERIOD",
+      "boundaryTarget": "ENROLLMENT_DATE",
+      "offsetPeriods": 0,
+      "offsetPeriodType": "Quarterly"
+    }
+  ],
   "attributeValues": [
     {
       "value": "BirthsHome",
@@ -12,5 +26,6 @@
   ],
   "program": {
     "id": "SSLpOM0r1U7"
-  }
+  },
+  "analyticsType": "ENROLLMENT"
 }

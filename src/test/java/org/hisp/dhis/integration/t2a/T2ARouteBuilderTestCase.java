@@ -32,9 +32,9 @@ import static io.restassured.RestAssured.when;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -45,8 +45,10 @@ import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.camel.test.spring.junit5.CamelSpringBootTest;
 import org.apache.camel.test.spring.junit5.UseAdviceWith;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,7 +82,7 @@ public class T2ARouteBuilderTestCase
 
     private static String dataElementId;
 
-    private static String orgUnitId;
+    private static String rootOrgUnitId;
 
     private static String t2aHttpEndpointUri;
 
@@ -89,16 +91,18 @@ public class T2ARouteBuilderTestCase
 
     private MockEndpoint spyEndpoint;
 
+    private String orgUnitUnderTestId;
+
     @Container
     public static final PostgreSQLContainer<?> POSTGRESQL_CONTAINER = new PostgreSQLContainer<>(
         DockerImageName.parse( "postgis/postgis:12-3.2-alpine" ).asCompatibleSubstituteFor( "postgres" ) )
-            .withDatabaseName( "dhis2" )
-            .withNetworkAliases( "db" )
-            .withUsername( "dhis" )
-            .withPassword( "dhis" ).withNetwork( NETWORK );
+        .withDatabaseName( "dhis2" )
+        .withNetworkAliases( "db" )
+        .withUsername( "dhis" )
+        .withPassword( "dhis" ).withNetwork( NETWORK );
 
     @Container
-    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.36.7" )
+    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.37.4" )
         .dependsOn( POSTGRESQL_CONTAINER )
         .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
         .withNetwork( NETWORK ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
@@ -113,7 +117,7 @@ public class T2ARouteBuilderTestCase
         System.setProperty( "org.unit.batch.size",
             String.valueOf( ThreadLocalRandom.current().nextInt( 1, 1024 ) ) );
         System.setProperty( "split.periods",
-            String.valueOf( ThreadLocalRandom.current().nextBoolean() ).toLowerCase() );
+            String.valueOf( true ) );
         System.setProperty( "thread.pool.size",
             String.valueOf( Runtime.getRuntime().availableProcessors() ) );
         t2aHttpEndpointUri = String.format( "http://0.0.0.0:%s/dhis2/t2a", SocketUtils.findAvailableTcpPort() );
@@ -126,13 +130,10 @@ public class T2ARouteBuilderTestCase
         RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
 
         importMetaData();
-        orgUnitId = createOrgUnit();
         createOrgUnitLevel();
-        addOrgUnitToUser( orgUnitId );
+        rootOrgUnitId = createOrgUnit();
         dataElementId = createAggregateDataElement();
-        addOrgUnitToProgram( orgUnitId );
         updateProgramIndicatorAttributeValue();
-        createTrackedEntityInstances();
     }
 
     @AfterAll
@@ -149,6 +150,10 @@ public class T2ARouteBuilderTestCase
     public void beforeEach()
         throws Exception
     {
+        orgUnitUnderTestId = createOrgUnit( rootOrgUnitId );
+        addOrgUnitToUser( orgUnitUnderTestId );
+        addOrgUnitToProgram( orgUnitUnderTestId );
+        createTrackedEntityInstances( orgUnitUnderTestId );
         if ( !camelContext.isStarted() )
         {
             AdviceWith.adviceWith( camelContext, "pollAnalyticsRoute", r -> r.weaveAddLast().to( "mock:spy" ) );
@@ -178,8 +183,7 @@ public class T2ARouteBuilderTestCase
             "valueType", "NUMBER",
             "name", "EIR - Births (home)",
             "shortName", "Births (home)",
-            "categoryCombo", Map.of( "id", "bjDvmb4bfuf" ),
-            "aggregationLevels", List.of( 1 ) );
+            "categoryCombo", Map.of( "id", "bjDvmb4bfuf" ) );
 
         return given().body( dataElement ).when().post( "api/dataElements" ).then().statusCode( 201 ).extract().body()
             .path( "response.uid" );
@@ -199,16 +203,34 @@ public class T2ARouteBuilderTestCase
 
     private static void createOrgUnitLevel()
     {
-        Map<String, List<Map<String, ? extends Serializable>>> orgUnitLevels = Map.of(
-            "organisationUnitLevels", List.of( Map.of( "name", "Level 1", "level", 1 ) ) );
-        given().body( orgUnitLevels ).when().post( "api/filledOrganisationUnitLevels" ).then().statusCode( 201 );
+        given().body( Map.of(
+                "organisationUnitLevels", List.of( Map.of( "name", "Level 1", "level", 1 ) ) ) ).when()
+            .post( "api/filledOrganisationUnitLevels" ).then().statusCode( 201 );
+        given().body( Map.of(
+                "organisationUnitLevels", List.of( Map.of( "name", "Level 2", "level", 2 ) ) ) ).when()
+            .post( "api/filledOrganisationUnitLevels" ).then().statusCode( 201 );
     }
 
     private static String createOrgUnit()
     {
-        Map<String, ? extends Serializable> orgUnit = Map.of( "name", "Acme",
-            "shortName", "Acme",
+        return createOrgUnit( null );
+    }
+
+    private static String createOrgUnit( String parentId )
+    {
+        Faker faker = new Faker();
+        Name name = faker.name();
+
+        Map<String, Object> orgUnit = Map.of( "name", name.firstName(),
+            "shortName", name.firstName(),
             "openingDate", new Date() );
+
+        if ( parentId != null )
+        {
+            orgUnit = new HashMap<>( orgUnit );
+            orgUnit.put( "parent", Map.of( "id", parentId ) );
+        }
+
         return given().body( orgUnit ).when().post( "api/organisationUnits" ).then().statusCode( 201 ).extract()
             .path( "response.uid" );
     }
@@ -223,8 +245,8 @@ public class T2ARouteBuilderTestCase
             .statusCode( 200 );
     }
 
-    private static void createTrackedEntityInstances()
-        throws IOException
+    private void createTrackedEntityInstances( String orgUnitId )
+        throws IOException, InterruptedException
     {
         Faker faker = new Faker();
         for ( int i = 0; i < 5; i++ )
@@ -233,11 +255,19 @@ public class T2ARouteBuilderTestCase
             String uniqueSystemIdentifier = given().get( "api/trackedEntityAttributes/KSr2yTdu1AI/generate" ).then()
                 .statusCode( 200 ).extract().path( "value" );
 
-            createTrackedEntityInstance( uniqueSystemIdentifier, name );
+            createTrackedEntityInstance( uniqueSystemIdentifier, name, orgUnitId );
         }
+        dhis2_13102();
     }
 
-    private static JsonPath createTrackedEntityInstance( String uniqueSystemIdentifier, Name name )
+    //FIXME: https://jira.dhis2.org/browse/DHIS2-13102
+    private void dhis2_13102()
+        throws InterruptedException
+    {
+        Thread.sleep( 1000 );
+    }
+
+    private static JsonPath createTrackedEntityInstance( String uniqueSystemIdentifier, Name name, String orgUnitId )
         throws IOException
     {
         String trackedEntityInstance = StreamUtils.copyToString(
@@ -245,8 +275,8 @@ public class T2ARouteBuilderTestCase
             Charset.defaultCharset() );
 
         return given().body(
-            String.format( trackedEntityInstance, orgUnitId, uniqueSystemIdentifier, name.firstName(),
-                name.lastName() ) )
+                String.format( trackedEntityInstance, orgUnitId, uniqueSystemIdentifier, name.firstName(),
+                    name.lastName() ) )
             .when().post( "api/trackedEntityInstances" ).then().statusCode( 200 ).extract().jsonPath();
     }
 
@@ -262,9 +292,10 @@ public class T2ARouteBuilderTestCase
 
         spyEndpoint.await();
 
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
-            orgUnitId ).then()
-            .statusCode( 200 ).body( "[0]", equalTo( "5.0" ) );
+        when().get(
+                "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
+                dataElementId, orgUnitUnderTestId ).then()
+            .statusCode( 200 ).body( "rows[0][2]", equalTo( "5.0" ) );
     }
 
     @Test
@@ -277,7 +308,7 @@ public class T2ARouteBuilderTestCase
         String uniqueSystemIdentifier = given().get( "api/trackedEntityAttributes/KSr2yTdu1AI/generate" ).then()
             .statusCode( 200 ).extract().path( "value" );
 
-        JsonPath jsonPath = createTrackedEntityInstance( uniqueSystemIdentifier, name );
+        JsonPath jsonPath = createTrackedEntityInstance( uniqueSystemIdentifier, name, orgUnitUnderTestId );
         String trackedEntityInstanceId = jsonPath.get( "response.importSummaries[0].reference" );
         String eventId = jsonPath.get(
             "response.importSummaries[0].enrollments.importSummaries[0].events.importSummaries[0].reference" );
@@ -288,26 +319,29 @@ public class T2ARouteBuilderTestCase
             .statusCode( 204 );
 
         spyEndpoint.await();
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
-            orgUnitId ).then()
-            .statusCode( 200 ).body( "[0]", equalTo( "6.0" ) );
+        when().get(
+                "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
+                dataElementId, orgUnitUnderTestId ).then()
+            .statusCode( 200 ).body( "rows[0][2]", equalTo( "6.0" ) );
 
         String eventPut = StreamUtils.copyToString(
             Thread.currentThread().getContextClassLoader().getResourceAsStream( "eventPut.json" ),
             Charset.defaultCharset() );
 
-        given().body( String.format( eventPut, eventId, orgUnitId, trackedEntityInstanceId ) ).when()
+        given().body( String.format( eventPut, eventId, orgUnitUnderTestId, trackedEntityInstanceId ) ).when()
             .put( "api/events/{eventId}/ABhkInP0wGY", eventId ).then().statusCode( 200 );
 
         spyEndpoint.reset();
         spyEndpoint.setExpectedCount( 2 );
-        given().baseUri( t2aHttpEndpointUri ).when().post().then()
+        given().baseUri(
+                t2aHttpEndpointUri ).when().post().then()
             .statusCode( 204 );
 
         spyEndpoint.await();
 
-        when().get( "api/dataValues?de={dataElement}&pe=2022Q1&ou={organisationUnit}", dataElementId,
-            orgUnitId ).then()
-            .statusCode( 200 ).body( "[0]", equalTo( "5.0" ) );
+        when().get(
+                "api/analytics?dimension=dx:{dataElement},pe:2022Q1&filter=ou:{organisationUnit}&displayProperty=NAME&includeNumDen=false&skipMeta=true&skipData=false",
+                dataElementId, orgUnitUnderTestId ).then()
+            .statusCode( 200 ).body( "rows[0][2]", equalTo( "5.0" ) );
     }
 }
