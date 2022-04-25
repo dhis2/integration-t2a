@@ -40,6 +40,8 @@ import org.hisp.dhis.integration.t2a.model.OrganisationUnits;
 import org.hisp.dhis.integration.t2a.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridQueryBuilder;
 import org.hisp.dhis.integration.t2a.processors.AnalyticsGridToDataValueSetQueryBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -51,6 +53,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class T2ARouteBuilder extends RouteBuilder
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger( T2ARouteBuilder.class );
+
     public static final String PROGRAM_INDICATORS_PROPERTY = "pis";
 
     public static final String DIMENSIONS_PROPERTY = "dimensions";
@@ -105,29 +109,21 @@ public class T2ARouteBuilder extends RouteBuilder
     {
         from( "direct:poll-analytics" ).routeId( "pollAnalyticsRoute" ).streamCaching( "true" )
             .setHeader( "CamelHttpMethod", constant( "GET" ) )
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Analytics started with task ID ${header.taskId}" )
+            .log( LoggingLevel.INFO, LOGGER, "Analytics started with task ID ${header.taskId}" )
             .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+            .log( LoggingLevel.DEBUG, LOGGER,
                 "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
             .setProperty( "status", jsonpath( "$[0]" ) )
             .loopDoWhile( simple( "${exchangeProperty.status[completed]} == false" ) )
             .toD( "{{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId}" )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+            .log( LoggingLevel.DEBUG, LOGGER,
                 "HTTP GET {{dhis2.api.url}}/system/tasks/ANALYTICS_TABLE/${header.taskId} => ${body}" )
             .setProperty( "status", jsonpath( "$[0]" ) ).delay( 10000 ).end()
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Analytics task completed" )
+            .log( LoggingLevel.INFO, LOGGER, "Analytics task completed" )
             .choice()
             .when( simple( "${exchangeProperty.status[level]} == 'ERROR'" ) )
             .throwException( RuntimeException.class, "Analytics failed => ${body}" ).end()
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Analytics status: ${header.status}" )
+            .log( LoggingLevel.INFO, LOGGER, "Analytics status: ${header.status}" )
             .end()
             .setHeader( "Content-Type", constant( "application/json" ) )
             .setHeader( "CamelHttpMethod", constant( "POST" ) )
@@ -139,14 +135,10 @@ public class T2ARouteBuilder extends RouteBuilder
     {
         from( "seda:t2a" ).setProperty( "startTime", simple( "${bean:java.lang.System?method=currentTimeMillis}" ) )
             .streamCaching( "true" )
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Fetching organisation units..." )
+            .log( LoggingLevel.INFO, LOGGER, "Fetching organisation units..." )
             .setHeader( Exchange.HTTP_QUERY, simple( "paging=false&fields=id&filter=level:eq:{{org.unit.level}}" ) )
             .toD( "{{dhis2.api.url}}/organisationUnits" )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "HTTP GET {{dhis2.api.url}}/organisationUnits => ${body}" )
+            .log( LoggingLevel.DEBUG, LOGGER, "HTTP GET {{dhis2.api.url}}/organisationUnits => ${body}" )
             .unmarshal().json( OrganisationUnits.class )
             .setProperty( ALL_ORG_UNITS_PROPERTY, simple( "${body}" ) )
             .removeHeader( Exchange.HTTP_QUERY ) // removing query string, so it
@@ -158,9 +150,7 @@ public class T2ARouteBuilder extends RouteBuilder
             .to( "direct:collect" )
             .process( e -> e.getIn()
                 .setBody( (System.currentTimeMillis() - e.getProperty( "startTime", Long.class )) / 1000 ) )
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Aggregated program indicators in ${body} seconds" );
+            .log( LoggingLevel.INFO, LOGGER, "Aggregated program indicators in ${body} seconds" );
     }
 
     protected void buildScheduleAnalyticsRoute()
@@ -170,13 +160,10 @@ public class T2ARouteBuilder extends RouteBuilder
             .setHeader( "CamelHttpMethod", constant( "POST" ) )
             .setBody( simple( "${null}" ) )
             .toD( "{{dhis2.api.url}}/maintenance?cacheClear=true" )
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "Scheduling analytics task..." )
+            .log( LoggingLevel.INFO, LOGGER, "Scheduling analytics task..." )
             .toD(
                 "{{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}}" )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+            .log( LoggingLevel.DEBUG, LOGGER,
                 "HTTP POST {{dhis2.api.url}}/resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}} => ${body}" )
             .setHeader( "taskId", jsonpath( "$.response.id" ) ).to( "direct:poll-analytics" );
     }
@@ -187,12 +174,10 @@ public class T2ARouteBuilder extends RouteBuilder
             .setHeader( Exchange.HTTP_QUERY, constant(
                 "fields=programIndicators[id,name,aggregateExportCategoryOptionCombo,"
                     + "aggregateExportAttributeOptionCombo,attributeValues]" ) )
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+            .log( LoggingLevel.INFO, LOGGER,
                 "Fetching program indicators..." )
             .toD( "{{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}}" )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+            .log( LoggingLevel.DEBUG, LOGGER,
                 "HTTP GET {{dhis2.api.url}}/programIndicatorGroups/{{pi.group.id}} => ${body}" )
             .unmarshal()
             .json( ProgramIndicatorGroup.class ).setProperty( PROGRAM_INDICATORS_PROPERTY, simple( "${body}" ) )
@@ -208,21 +193,17 @@ public class T2ARouteBuilder extends RouteBuilder
         from( "direct:push" ).streamCaching( "true" )
             .split( method( dimensionSplitter, "split" ) )
             .executorService( programIndicatorPool )
-            .log( LoggingLevel.INFO,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
+            .log( LoggingLevel.INFO, LOGGER,
                 "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
             .process( analyticsGridQueryBuilder ).setHeader( "Authorization", constant( authHeader ) )
             .setHeader( "AnalyticsQueryParams", simple( "${header.CamelHttpQuery}" ) )
             .toD( "{{dhis2.api.url}}/analytics" )
-             .log( LoggingLevel.DEBUG,
-        org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-        "HTTP GET {{dhis2.api.url}}/analytics?${header.AnalyticsQueryParams} Response => ${body}" ).
+            .log( LoggingLevel.DEBUG, LOGGER,
+                "HTTP GET {{dhis2.api.url}}/analytics?${header.AnalyticsQueryParams} Response => ${body}" ).
             process( analyticsGridToDataValueSetQueryBuilder )
             .setHeader( "Content-Type", constant( "application/json" ) )
             .toD( "{{dhis2.api.url}}/dataValueSets" )
-            .log( LoggingLevel.DEBUG,
-                org.slf4j.LoggerFactory.getLogger( "org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder" ),
-                "HTTP POST {{dhis2.api.url}}/dataValueSets Response => ${body}" )
+            .log( LoggingLevel.DEBUG, LOGGER, "HTTP POST {{dhis2.api.url}}/dataValueSets Response => ${body}" )
             .end()
             .setHeader( "skipAggregate", constant( "false" ) )
             .setHeader( "skipEvents", constant( "true" ) )
