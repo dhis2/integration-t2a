@@ -1,6 +1,6 @@
 # Tracker-to-Aggregate
 
-![Build Status](https://github.com/smooks/smooks/workflows/CI/badge.svg)
+![Build Status](https://github.com/dhis2/integration-t2a/workflows/CI/badge.svg)
 
 [Tracker-to-Aggregate](https://docs.dhis2.org/en/implement/maintenance-and-use/tracker-and-aggregate-data-integration.html#how-to-saving-aggregated-tracker-data-as-aggregate-data-values) (T2A) is a Java application that periodically aggregates and collects aggregate program indicators (PIs) from the DHIS2 server before pushing them back to the server as data values sets. T2A is a tool for DHIS2 administrators, designed to reduce the load of analytic operations on the DHIS2 server since requests for pre-aggregated data is often less demanding than on-the-fly aggregation of tracker data.
 
