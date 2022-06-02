@@ -33,19 +33,24 @@ import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+
 @Component
 public class AnalyticsGridQueryBuilder implements Processor
 {
     public void process( Exchange exchange )
     {
         Dimensions dimensions = exchange.getMessage().getBody( Dimensions.class );
-        String query = "dimension=dx:" + dimensions.getProgramIndicator().getId() +
-            "&dimension=ou:" + dimensions.getOrganisationUnitIds() +
-            "&dimension=pe:" + dimensions.getPeriods() +
-            "&rows=ou;pe&columns=dx&skipMeta=true";
+
+        Map<String, List<String>> query = Map.of( "dimension",
+            List.of( "dx:" + dimensions.getProgramIndicator().getId().get(),
+                "ou:" + dimensions.getOrganisationUnitIds(), "pe:" + dimensions.getPeriods() ), "rows",
+            List.of( "ou;pe" ),
+            "columns", List.of( "dx" ), "skipMeta", List.of( "true" ) );
 
         exchange.setProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY, dimensions );
-        exchange.getMessage().setHeader( Exchange.HTTP_QUERY, query );
-
+        exchange.getMessage()
+            .setHeader( "CamelDhis2.queryParams", query );
     }
 }
