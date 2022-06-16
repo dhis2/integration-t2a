@@ -43,11 +43,11 @@ public class AnalyticsGridQueryBuilder implements Processor
     {
         Dimensions dimensions = exchange.getMessage().getBody( Dimensions.class );
 
-        Map<String, List<String>> query = Map.of( "dimension",
+        Map<String, Object> query = Map.of( "dimension",
             List.of( "dx:" + dimensions.getProgramIndicator().getId().get(),
                 "ou:" + dimensions.getOrganisationUnitIds(), "pe:" + dimensions.getPeriods() ), "rows",
-            List.of( "ou;pe" ),
-            "columns", List.of( "dx" ), "skipMeta", List.of( "true" ) );
+            "ou;pe",
+            "columns", "dx", "skipMeta", "true" );
 
         exchange.setProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY, dimensions );
         exchange.getMessage()
