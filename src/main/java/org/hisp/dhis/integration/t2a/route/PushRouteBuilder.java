@@ -71,7 +71,7 @@ public class PushRouteBuilder extends RouteBuilder
             .stopOnException()
             .executorService( programIndicatorPool )
             .log( LoggingLevel.INFO, LOGGER,
-                "Processing program indicator '${body.programIndicator.id}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
+                "Processing program indicator '${body.programIndicator.id.get}' for period/s '${body.periods}' and organisation unit/s '${body.organisationUnitIds}'" )
             .process( analyticsGridQueryBuilder )
             .to( "dhis2://get/resource?path=analytics&client=#dhis2Client" ).unmarshal().json( ListGrid.class )
             .process( analyticsGridToDataValueSetQueryBuilder )
