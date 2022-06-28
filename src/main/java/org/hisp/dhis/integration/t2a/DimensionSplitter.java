@@ -27,6 +27,8 @@
  */
 package org.hisp.dhis.integration.t2a;
 
+import static org.hisp.dhis.integration.t2a.route.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,8 +39,6 @@ import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import static org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder.ALL_ORG_UNITS_PROPERTY;
 
 @Component
 public class DimensionSplitter

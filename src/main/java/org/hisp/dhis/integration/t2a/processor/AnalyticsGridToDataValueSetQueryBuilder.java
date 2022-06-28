@@ -25,7 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.integration.t2a.processors;
+package org.hisp.dhis.integration.t2a.processor;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
@@ -34,15 +39,10 @@ import org.hisp.dhis.api.v2_37_6.model.DataValueSet;
 import org.hisp.dhis.api.v2_37_6.model.DataValue__1;
 import org.hisp.dhis.api.v2_37_6.model.ListGrid;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
-import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
+import org.hisp.dhis.integration.t2a.route.T2ARouteBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @Component
 public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
