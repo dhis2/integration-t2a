@@ -82,6 +82,8 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
                 dv.setPeriod( pe );
                 dv.setDataElement( aggregateDataExportAttrOptional.get().getValue().get() );
                 dv.setCategoryOptionCombo(
+                    dimensions.getProgramIndicator().getAggregateExportCategoryOptionCombo().orElse( null ) );
+                dv.setAttributeOptionCombo(
                     dimensions.getProgramIndicator().getAggregateExportAttributeOptionCombo().orElse( null ) );
 
                 dataValueSet.getDataValues().get().add( dv );
@@ -89,5 +91,15 @@ public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
         }
 
         exchange.getMessage().setBody( dataValueSet );
+    }
+
+    public String getAggrDataExportAttrId()
+    {
+        return aggrDataExportAttrId;
+    }
+
+    public void setAggrDataExportAttrId( String aggrDataExportAttrId )
+    {
+        this.aggrDataExportAttrId = aggrDataExportAttrId;
     }
 }
