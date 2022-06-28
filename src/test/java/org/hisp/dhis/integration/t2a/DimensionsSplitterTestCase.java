@@ -43,7 +43,7 @@ import org.apache.camel.support.DefaultMessage;
 import org.hisp.dhis.api.v2_37_6.model.ProgramIndicator;
 import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
-import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
+import org.hisp.dhis.integration.t2a.route.T2ARouteBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

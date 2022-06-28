@@ -25,32 +25,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.integration.t2a.processors;
-
-import org.apache.camel.Exchange;
-import org.apache.camel.Processor;
-import org.hisp.dhis.integration.t2a.model.Dimensions;
-import org.hisp.dhis.integration.t2a.routes.T2ARouteBuilder;
-import org.springframework.stereotype.Component;
+package org.hisp.dhis.integration.t2a.route;
 
 import java.util.List;
 import java.util.Map;
 
+import org.apache.camel.LoggingLevel;
+import org.apache.camel.builder.RouteBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
 @Component
-public class AnalyticsGridQueryBuilder implements Processor
+public class RunAnalyticsRouteBuilder extends RouteBuilder
 {
-    public void process( Exchange exchange )
+    private static final Logger LOGGER = LoggerFactory.getLogger( RunAnalyticsRouteBuilder.class );
+
+    @Override
+    public void configure()
+        throws Exception
     {
-        Dimensions dimensions = exchange.getMessage().getBody( Dimensions.class );
-
-        Map<String, Object> query = Map.of( "dimension",
-            List.of( "dx:" + dimensions.getProgramIndicator().getId().get(),
-                "ou:" + dimensions.getOrganisationUnitIds(), "pe:" + dimensions.getPeriods() ), "rows",
-            "ou;pe",
-            "columns", "dx", "skipMeta", "true" );
-
-        exchange.setProperty( T2ARouteBuilder.DIMENSIONS_PROPERTY, dimensions );
-        exchange.getMessage()
-            .setHeader( "CamelDhis2.queryParams", query );
+        from( "direct:run-analytics" ).routeId( "scheduleAnalyticsRoute" )
+            .log( LoggingLevel.INFO, LOGGER, "Scheduling analytics task..." )
+            .setHeader( "CamelDhis2.queryParams", constant( Map.of( "cacheClear", List.of( "true" ) ) ) )
+            .to( "dhis2://post/resource?path=maintenance&client=#dhis2Client" )
+            .toD(
+                "dhis2://resourceTables/analytics?skipAggregate=${header.skipAggregate}&skipEvents=${header.skipEvents}&lastYears={{analytics.last.years:1}}&client=#dhis2Client" )
+            .log( LoggingLevel.INFO, LOGGER, "Analytics task completed" );
     }
 }
