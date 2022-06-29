@@ -41,11 +41,14 @@ public class Application
     @Value( "${dhis2.api.url}" )
     private String baseApiUrl;
 
-    @Value( "${dhis2.api.username}" )
+    @Value( "${dhis2.api.username:#{null}}" )
     private String username;
 
-    @Value( "${dhis2.api.password}" )
+    @Value( "${dhis2.api.password:#{null}}" )
     private String password;
+
+    @Value( "${dhis2.api.pat:#{null}}" )
+    private String pat;
 
     public static void main( String[] args )
     {
@@ -57,6 +60,23 @@ public class Application
     @Bean
     public Dhis2Client dhis2Client()
     {
-        return Dhis2ClientBuilder.newClient( baseApiUrl, username, password ).build();
+        if ( pat != null && (username != null || password != null) )
+        {
+            throw new T2AException(
+                "Bad configuration: PAT authentication and basic authentication are mutually exclusive" );
+        }
+
+        if ( pat != null )
+        {
+            return Dhis2ClientBuilder.newClient( baseApiUrl, pat ).build();
+        }
+        else if ( username != null && password != null )
+        {
+            return Dhis2ClientBuilder.newClient( baseApiUrl, username, password ).build();
+        }
+        else
+        {
+            throw new T2AException( "Bad configuration: missing authentication details" );
+        }
     }
 }

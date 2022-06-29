@@ -25,22 +25,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.hisp.dhis.integration.t2a.route;
+package org.hisp.dhis.integration.t2a;
 
-import org.apache.camel.builder.RouteBuilder;
-import org.springframework.stereotype.Component;
-
-@Component
-public class SourceRouteBuilder extends RouteBuilder
+public class T2AException extends RuntimeException
 {
-    @Override
-    public void configure()
+    public T2AException()
     {
-        from( "jetty:{{http.endpoint.uri:http://localhost:8081/dhis2/t2a}}" )
-            .removeHeaders( "*" )
-            .to( "seda:t2a?waitForTaskToComplete=never" );
+        super();
+    }
 
-        from( "quartz://t2a?cron={{schedule.expression:0 0 0 * * ?}}" )
-            .to( "seda:t2a" );
+    public T2AException( String message )
+    {
+        super( message );
+    }
+
+    public T2AException( String message, Throwable cause )
+    {
+        super( message, cause );
+    }
+
+    public T2AException( Throwable cause )
+    {
+        super( cause );
+    }
+
+    protected T2AException( String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace )
+    {
+        super( message, cause, enableSuppression, writableStackTrace );
     }
 }
