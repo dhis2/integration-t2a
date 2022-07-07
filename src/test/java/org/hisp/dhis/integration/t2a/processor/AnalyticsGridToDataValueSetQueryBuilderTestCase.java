@@ -35,12 +35,12 @@ import java.util.List;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
-import org.hisp.dhis.api.v2_37_6.model.Attribute;
-import org.hisp.dhis.api.v2_37_6.model.AttributeValue;
-import org.hisp.dhis.api.v2_37_6.model.DataValueSet;
-import org.hisp.dhis.api.v2_37_6.model.DataValue__1;
-import org.hisp.dhis.api.v2_37_6.model.ListGrid;
-import org.hisp.dhis.api.v2_37_6.model.ProgramIndicator;
+import org.hisp.dhis.api.model.v2_37_7.Attribute;
+import org.hisp.dhis.api.model.v2_37_7.AttributeValue;
+import org.hisp.dhis.api.model.v2_37_7.DataValueSet;
+import org.hisp.dhis.api.model.v2_37_7.DataValue__1;
+import org.hisp.dhis.api.model.v2_37_7.ListGrid;
+import org.hisp.dhis.api.model.v2_37_7.ProgramIndicator;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.hisp.dhis.integration.t2a.route.T2ARouteBuilder;
 import org.junit.jupiter.api.Test;

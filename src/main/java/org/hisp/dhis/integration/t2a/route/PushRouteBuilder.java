@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutorService;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.builder.ThreadPoolBuilder;
-import org.hisp.dhis.api.v2_37_6.model.ListGrid;
+import org.hisp.dhis.api.model.v2_37_7.ListGrid;
 import org.hisp.dhis.integration.t2a.DimensionSplitter;
 import org.hisp.dhis.integration.t2a.processor.AnalyticsGridQueryBuilder;
 import org.hisp.dhis.integration.t2a.processor.AnalyticsGridToDataValueSetQueryBuilder;
