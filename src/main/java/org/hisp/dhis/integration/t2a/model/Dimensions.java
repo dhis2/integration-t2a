@@ -29,7 +29,7 @@ package org.hisp.dhis.integration.t2a.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.hisp.dhis.api.v2_37_6.model.ProgramIndicator;
+import org.hisp.dhis.api.model.v2_37_7.ProgramIndicator;
 
 @Data
 @AllArgsConstructor

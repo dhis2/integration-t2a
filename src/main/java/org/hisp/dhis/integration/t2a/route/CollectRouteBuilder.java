@@ -29,7 +29,7 @@ package org.hisp.dhis.integration.t2a.route;
 
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.builder.RouteBuilder;
-import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
+import org.hisp.dhis.api.model.v2_37_7.ProgramIndicatorGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

@@ -38,26 +38,26 @@ import java.util.Map;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.AdviceWith;
-import org.hisp.dhis.api.v2_37_6.model.AggregationType;
-import org.hisp.dhis.api.v2_37_6.model.AnalyticsPeriodBoundary;
-import org.hisp.dhis.api.v2_37_6.model.Attribute;
-import org.hisp.dhis.api.v2_37_6.model.AttributeValue;
-import org.hisp.dhis.api.v2_37_6.model.Attribute__1;
-import org.hisp.dhis.api.v2_37_6.model.CategoryCombo;
-import org.hisp.dhis.api.v2_37_6.model.DataElement;
-import org.hisp.dhis.api.v2_37_6.model.DataValue__2;
-import org.hisp.dhis.api.v2_37_6.model.Enrollment;
-import org.hisp.dhis.api.v2_37_6.model.Event;
-import org.hisp.dhis.api.v2_37_6.model.EventChart;
-import org.hisp.dhis.api.v2_37_6.model.ImportSummaries;
-import org.hisp.dhis.api.v2_37_6.model.OptionSet;
-import org.hisp.dhis.api.v2_37_6.model.OrganisationUnit;
-import org.hisp.dhis.api.v2_37_6.model.OrganisationUnitLevel;
-import org.hisp.dhis.api.v2_37_6.model.Program;
-import org.hisp.dhis.api.v2_37_6.model.ProgramIndicator;
-import org.hisp.dhis.api.v2_37_6.model.TrackedEntityAttributeValue;
-import org.hisp.dhis.api.v2_37_6.model.TrackedEntityInstance;
-import org.hisp.dhis.api.v2_37_6.model.WebMessage;
+import org.hisp.dhis.api.model.v2_37_7.AggregationType;
+import org.hisp.dhis.api.model.v2_37_7.AnalyticsPeriodBoundary;
+import org.hisp.dhis.api.model.v2_37_7.Attribute;
+import org.hisp.dhis.api.model.v2_37_7.AttributeValue;
+import org.hisp.dhis.api.model.v2_37_7.Attribute__1;
+import org.hisp.dhis.api.model.v2_37_7.CategoryCombo;
+import org.hisp.dhis.api.model.v2_37_7.DataElement;
+import org.hisp.dhis.api.model.v2_37_7.DataValue__2;
+import org.hisp.dhis.api.model.v2_37_7.Enrollment;
+import org.hisp.dhis.api.model.v2_37_7.Event;
+import org.hisp.dhis.api.model.v2_37_7.EventChart;
+import org.hisp.dhis.api.model.v2_37_7.ImportSummaries;
+import org.hisp.dhis.api.model.v2_37_7.OptionSet;
+import org.hisp.dhis.api.model.v2_37_7.OrganisationUnit;
+import org.hisp.dhis.api.model.v2_37_7.OrganisationUnitLevel;
+import org.hisp.dhis.api.model.v2_37_7.Program;
+import org.hisp.dhis.api.model.v2_37_7.ProgramIndicator;
+import org.hisp.dhis.api.model.v2_37_7.TrackedEntityAttributeValue;
+import org.hisp.dhis.api.model.v2_37_7.TrackedEntityInstance;
+import org.hisp.dhis.api.model.v2_37_7.WebMessage;
 import org.hisp.dhis.integration.sdk.Dhis2ClientBuilder;
 import org.hisp.dhis.integration.sdk.api.Dhis2Client;
 import org.junit.jupiter.api.AfterAll;
@@ -102,7 +102,7 @@ public class AbstractRouteBuilderTestCase
 
         POSTGRESQL_CONTAINER.start();
 
-        DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.37.6" )
+        DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.37.7" )
             .dependsOn( POSTGRESQL_CONTAINER )
             .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
             .withNetwork( NETWORK ).withExposedPorts( 8080 )

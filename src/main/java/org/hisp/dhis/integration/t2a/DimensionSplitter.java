@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.camel.Exchange;
-import org.hisp.dhis.api.v2_37_6.model.ProgramIndicatorGroup;
+import org.hisp.dhis.api.model.v2_37_7.ProgramIndicatorGroup;
 import org.hisp.dhis.integration.t2a.model.Dimensions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
