@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.builder.AdviceWith;
@@ -102,7 +103,8 @@ public class AbstractRouteBuilderTestCase
 
         POSTGRESQL_CONTAINER.start();
 
-        DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.37.7" )
+        DHIS2_CONTAINER = new GenericContainer<>(
+            "dhis2/core:" + Objects.requireNonNull( System.getProperty( "dhis2.version" ) ) )
             .dependsOn( POSTGRESQL_CONTAINER )
             .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
             .withNetwork( NETWORK ).withExposedPorts( 8080 )
