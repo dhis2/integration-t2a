@@ -47,7 +47,7 @@ import org.springframework.util.StringUtils;
 @Component
 public class AnalyticsGridToDataValueSetQueryBuilder implements Processor
 {
-    @Value( "${aggr.data.export.de.id:vudyDP7jUy5}" )
+    @Value( "${aggr.data.export.attr.id:vudyDP7jUy5}" )
     private String aggrDataExportAttrId;
 
     public void process( Exchange exchange )
