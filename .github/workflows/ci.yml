@@ -21,4 +21,4 @@ jobs:
         java-version: '11'
         distribution: 'adopt'
         cache: maven
-    - run: mvn -B package -Dtest.dhis2.version={{ matrix.version }}
+    - run: mvn -B package -Dtest.dhis2.version=${{ matrix.version }}
