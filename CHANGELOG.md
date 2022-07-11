@@ -10,7 +10,7 @@
 - Wrong value is copied into the data value's category option combo
 
 ### Changed
-- Rename `aggr.data.export.attr.id` parameter to `aggr.data.export.attr.id`
+- Rename `aggr.data.export.de.id` parameter to `aggr.data.export.attr.id`
 
 ## [1.0.0-RC2] - 25-03-2022
 
