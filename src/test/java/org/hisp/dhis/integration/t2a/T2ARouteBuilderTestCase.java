@@ -96,9 +96,9 @@ public class T2ARouteBuilderTestCase
         .withPassword( "dhis" ).withNetwork( NETWORK );
 
     @Container
-    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.37.4" )
+    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.39.2.1" )
         .dependsOn( POSTGRESQL_CONTAINER )
-        .withClasspathResourceMapping( "dhis.conf", "/DHIS2_home/dhis.conf", BindMode.READ_WRITE )
+        .withClasspathResourceMapping( "dhis.conf", "/opt/dhis2/dhis.conf", BindMode.READ_WRITE )
         .withNetwork( NETWORK ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
         .withEnv( "WAIT_FOR_DB_CONTAINER", "db" + ":" + 5432 + " -t 0" );
 
@@ -181,13 +181,13 @@ public class T2ARouteBuilderTestCase
     private static void addOrgUnitToProgram( String orgUnitId )
     {
         when().post( "api/programs/SSLpOM0r1U7/organisationUnits/{organisationUnitId}", orgUnitId ).then()
-            .statusCode( 204 );
+            .statusCode( 200 );
     }
 
     private static void addOrgUnitToUser( String orgUnitId )
     {
         when().post( "api/users/M5zQapPyTZI/organisationUnits/{organisationUnitId}", orgUnitId ).then()
-            .statusCode( 204 );
+            .statusCode( 200 );
     }
 
     private static void createOrgUnitLevel()
@@ -248,7 +248,7 @@ public class T2ARouteBuilderTestCase
         }
 
 //         FIXME
-//          Thread.sleep( 1000 );
+//         Thread.sleep( 5000 );
     }
 
     private static void createTrackedEntityInstance( String uniqueSystemIdentifier, Name name, String orgUnitId )
