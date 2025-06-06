@@ -96,7 +96,7 @@ public class T2ARouteBuilderTestCase
         .withPassword( "dhis" ).withNetwork( NETWORK );
 
     @Container
-    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.39.2.1" )
+    public static final GenericContainer<?> DHIS2_CONTAINER = new GenericContainer<>( "dhis2/core:2.40.8" )
         .dependsOn( POSTGRESQL_CONTAINER )
         .withClasspathResourceMapping( "dhis.conf", "/opt/dhis2/dhis.conf", BindMode.READ_WRITE )
         .withNetwork( NETWORK ).withExposedPorts( 8080 ).waitingFor( new HttpWaitStrategy().forStatusCode( 200 ) )
@@ -261,7 +261,7 @@ public class T2ARouteBuilderTestCase
         given().body(
                 String.format( trackedEntityInstance, orgUnitId, uniqueSystemIdentifier, name.firstName(),
                     name.lastName() ) )
-            .when().post( "api/trackedEntityInstances" ).then().statusCode( 200 ).extract().jsonPath();
+            .when().post( "api/tracker?async=false" ).then().statusCode( 200 );
     }
 
     @RepeatedTest( 3 )
